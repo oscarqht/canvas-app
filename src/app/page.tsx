@@ -120,12 +120,52 @@ function useStyles(loggedIn: boolean) {
 }
 
 // ---------------------------------------------------------------------------
+// Ratio options
+// ---------------------------------------------------------------------------
+const RATIO_OPTIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "1:1", label: "Square 1:1" },
+  { value: "16:9", label: "Landscape 16:9" },
+  { value: "4:3", label: "Landscape 4:3" },
+  { value: "3:2", label: "Landscape 3:2" },
+  { value: "3:1", label: "Landscape 3:1" },
+  { value: "9:16", label: "Portrait 9:16" },
+  { value: "3:4", label: "Portrait 3:4" },
+  { value: "2:3", label: "Portrait 2:3" },
+  { value: "1:3", label: "Portrait 1:3" },
+];
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function HomePage() {
   const { loggedIn, user, loadingUser, login, logout } = useRaindropAuth();
   const { characters, loading: charsLoading, error: charsError } = useCharacters(loggedIn);
   const { styles, loading: stylesLoading, error: stylesError } = useStyles(loggedIn);
+
+  // Selection state
+  const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<number>>(new Set());
+  const [selectedStyleId, setSelectedStyleId] = useState<number | null>(null);
+
+  // Prompt controls
+  const [instruction, setInstruction] = useState("");
+  const [ratio, setRatio] = useState("auto");
+
+  const toggleCharacter = (id: number) => {
+    setSelectedCharacterIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleStyle = (id: number) => {
+    setSelectedStyleId((prev) => (prev === id ? null : id));
+  };
 
   return (
     <main className="min-h-screen bg-base-100 text-base-content flex flex-col">
@@ -222,11 +262,18 @@ export default function HomePage() {
 
       {/* Characters Section */}
       <section id="characters" className="flex-1 py-10 px-6 max-w-5xl mx-auto w-full">
-        <div className="mb-10">
-          <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
-            Raindrop · Canvas
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight">Characters</h1>
+        <div className="mb-6 flex items-end justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
+              Raindrop · Canvas
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight">Characters</h1>
+          </div>
+          {selectedCharacterIds.size > 0 && (
+            <span className="badge badge-primary badge-lg gap-1.5">
+              {selectedCharacterIds.size} selected
+            </span>
+          )}
         </div>
 
         {/* Not logged in */}
@@ -275,11 +322,16 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Grid */}
+        {/* Grid — multi-select */}
         {loggedIn && !charsLoading && characters.length > 0 && (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {characters.map((char) => (
-              <CharacterCard key={char.id} character={char} />
+              <CharacterCard
+                key={char.id}
+                character={char}
+                selected={selectedCharacterIds.has(char.id)}
+                onToggle={() => toggleCharacter(char.id)}
+              />
             ))}
           </div>
         )}
@@ -287,11 +339,16 @@ export default function HomePage() {
 
       {/* Styles Section */}
       <section id="styles" className="flex-1 py-10 px-6 max-w-5xl mx-auto w-full">
-        <div className="mb-10">
-          <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
-            Raindrop · Canvas
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight">Styles</h2>
+        <div className="mb-6 flex items-end justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
+              Raindrop · Canvas
+            </p>
+            <h2 className="text-3xl font-bold tracking-tight">Styles</h2>
+          </div>
+          {selectedStyleId !== null && (
+            <span className="badge badge-secondary badge-lg">1 selected</span>
+          )}
         </div>
 
         {/* Not logged in */}
@@ -333,48 +390,140 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Grid */}
+        {/* Grid — single-select */}
         {loggedIn && !stylesLoading && styles.length > 0 && (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {styles.map((pack) => (
-              <StylePackCard key={pack.id} pack={pack} />
+              <StylePackCard
+                key={pack.id}
+                pack={pack}
+                selected={selectedStyleId === pack.id}
+                onToggle={() => toggleStyle(pack.id)}
+              />
             ))}
           </div>
         )}
+      </section>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Prompt Controls Section                                             */}
+      {/* ------------------------------------------------------------------ */}
+      <section
+        id="prompt-controls"
+        className="py-10 px-6 max-w-5xl mx-auto w-full"
+      >
+        <div className="mb-6">
+          <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
+            Canvas · Generate
+          </p>
+          <h2 className="text-3xl font-bold tracking-tight">Prompt</h2>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          {/* Instruction textarea */}
+          <div className="form-control gap-2">
+            <label htmlFor="instruction" className="label pb-0">
+              <span className="label-text font-medium">Instruction</span>
+            </label>
+            <textarea
+              id="instruction"
+              className="textarea textarea-bordered w-full min-h-36 resize-y text-sm leading-relaxed focus:textarea-primary transition-colors"
+              placeholder="Describe what you want to generate…"
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+            />
+            {instruction.length > 0 && (
+              <span className="text-xs text-base-content/40 text-right">
+                {instruction.length} chars
+              </span>
+            )}
+          </div>
+
+          {/* Ratio select */}
+          <div className="form-control">
+            <select
+              id="ratio"
+              className="select select-bordered w-full max-w-xs focus:select-primary transition-colors"
+              value={ratio}
+              onChange={(e) => setRatio(e.target.value)}
+            >
+              {RATIO_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </section>
     </main>
   );
 }
 
 // ---------------------------------------------------------------------------
-// StylePackCard
+// StylePackCard — single-select
 // ---------------------------------------------------------------------------
-function StylePackCard({ pack }: { pack: StylePack }) {
+function StylePackCard({
+  pack,
+  selected,
+  onToggle,
+}: {
+  pack: StylePack;
+  selected: boolean;
+  onToggle: () => void;
+}) {
   return (
     <article
-      className="card bg-base-200 border border-base-300/50 hover:border-primary/30 hover:shadow-lg transition-all duration-300 group overflow-hidden"
+      onClick={onToggle}
+      role="button"
+      aria-pressed={selected}
+      tabIndex={0}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onToggle()}
+      className={[
+        "card bg-base-200 border transition-all duration-300 group overflow-hidden cursor-pointer outline-none",
+        selected
+          ? "border-secondary shadow-lg ring-2 ring-secondary/40"
+          : "border-base-300/50 hover:border-secondary/40 hover:shadow-lg",
+      ].join(" ")}
     >
-      {/* Preview thumbnail */}
-      {pack.previewUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={pack.previewUrl}
-          alt={pack.name}
-          className="w-full aspect-video object-cover group-hover:scale-[1.02] transition-transform duration-300"
-        />
-      ) : (
-        <div className="w-full aspect-video bg-base-300/50 flex items-center justify-center">
-          <svg className="size-12 text-base-content/20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <circle cx="8.5" cy="8.5" r="1.5" />
-            <path d="M21 15l-5-5L5 21" />
-          </svg>
-        </div>
-      )}
+      {/* Selection indicator */}
+      <div className="relative">
+        {pack.previewUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={pack.previewUrl}
+            alt={pack.name}
+            className="w-full aspect-video object-cover group-hover:scale-[1.02] transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full aspect-video bg-base-300/50 flex items-center justify-center">
+            <svg className="size-12 text-base-content/20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <path d="M21 15l-5-5L5 21" />
+            </svg>
+          </div>
+        )}
+
+        {/* Check badge */}
+        {selected && (
+          <span className="absolute top-2 right-2 badge badge-secondary gap-1 shadow">
+            <svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Selected
+          </span>
+        )}
+      </div>
 
       <div className="card-body gap-3 p-4">
         {/* Pack name */}
-        <h3 className="card-title text-base font-semibold group-hover:text-primary transition-colors duration-200">
+        <h3
+          className={[
+            "card-title text-base font-semibold transition-colors duration-200",
+            selected ? "text-secondary" : "group-hover:text-secondary",
+          ].join(" ")}
+        >
           {pack.name}
         </h3>
 
@@ -411,32 +560,73 @@ function StylePackCard({ pack }: { pack: StylePack }) {
 }
 
 // ---------------------------------------------------------------------------
-// CharacterCard
+// CharacterCard — multi-select
 // ---------------------------------------------------------------------------
-function CharacterCard({ character }: { character: Character }) {
+function CharacterCard({
+  character,
+  selected,
+  onToggle,
+}: {
+  character: Character;
+  selected: boolean;
+  onToggle: () => void;
+}) {
   return (
     <article
-      className="card bg-base-200 border border-base-300/50 hover:border-primary/30 hover:shadow-lg transition-all duration-300 group overflow-hidden"
+      onClick={onToggle}
+      role="checkbox"
+      aria-checked={selected}
+      tabIndex={0}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onToggle()}
+      className={[
+        "card bg-base-200 border transition-all duration-300 group overflow-hidden cursor-pointer outline-none",
+        selected
+          ? "border-primary shadow-lg ring-2 ring-primary/40"
+          : "border-base-300/50 hover:border-primary/30 hover:shadow-lg",
+      ].join(" ")}
     >
       {/* Image preview */}
-      {character.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={character.imageUrl}
-          alt={character.name}
-          className="w-full aspect-video object-cover group-hover:scale-[1.02] transition-transform duration-300"
-        />
-      ) : (
-        <div className="w-full aspect-video bg-base-300/50 flex items-center justify-center">
-          <svg className="size-12 text-base-content/20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v2h20v-2c0-3.3-6.7-5-10-5z" />
-          </svg>
-        </div>
-      )}
+      <div className="relative">
+        {character.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={character.imageUrl}
+            alt={character.name}
+            className="w-full aspect-video object-cover group-hover:scale-[1.02] transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full aspect-video bg-base-300/50 flex items-center justify-center">
+            <svg className="size-12 text-base-content/20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v2h20v-2c0-3.3-6.7-5-10-5z" />
+            </svg>
+          </div>
+        )}
+
+        {/* Checkbox overlay */}
+        <span
+          className={[
+            "absolute top-2 right-2 size-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 shadow",
+            selected
+              ? "bg-primary border-primary text-primary-content"
+              : "bg-base-100/70 border-base-300 backdrop-blur-sm",
+          ].join(" ")}
+        >
+          {selected && (
+            <svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+        </span>
+      </div>
 
       <div className="card-body gap-3 p-4">
         {/* Character name */}
-        <h2 className="card-title text-base font-semibold group-hover:text-primary transition-colors duration-200">
+        <h2
+          className={[
+            "card-title text-base font-semibold transition-colors duration-200",
+            selected ? "text-primary" : "group-hover:text-primary",
+          ].join(" ")}
+        >
           {character.name}
         </h2>
 
