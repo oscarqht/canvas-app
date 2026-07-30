@@ -1,6 +1,65 @@
-import Link from "next/link";
+"use client";
 
+import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
+import {
+  isLoggedIn,
+  clearTokens,
+  redirectToRaindropAuth,
+} from "@/lib/auth";
+import {
+  getAuthenticatedUser,
+  gravatarUrl,
+  type RaindropUser,
+} from "@/lib/raindrop";
+
+// ---------------------------------------------------------------------------
+// Auth + user hook
+// ---------------------------------------------------------------------------
+function useRaindropAuth() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [user, setUser] = useState<RaindropUser | null>(null);
+  const [loadingUser, setLoadingUser] = useState(false);
+
+  const fetchUser = useCallback(async () => {
+    if (!isLoggedIn()) {
+      setLoggedIn(false);
+      setUser(null);
+      return;
+    }
+    setLoggedIn(true);
+    setLoadingUser(true);
+    try {
+      const u = await getAuthenticatedUser();
+      setUser(u);
+    } finally {
+      setLoadingUser(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUser();
+    window.addEventListener("focus", fetchUser);
+    return () => window.removeEventListener("focus", fetchUser);
+  }, [fetchUser]);
+
+  const login = () => redirectToRaindropAuth();
+
+  const logout = () => {
+    clearTokens();
+    setLoggedIn(false);
+    setUser(null);
+  };
+
+  return { loggedIn, user, loadingUser, login, logout };
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 export default function HomePage() {
+  const { loggedIn, user, loadingUser, login, logout } = useRaindropAuth();
+
   return (
     <main className="min-h-screen bg-base-100 text-base-content flex flex-col">
       {/* Navbar */}
@@ -20,8 +79,99 @@ export default function HomePage() {
           <Link href="#contact" className="btn btn-primary btn-sm rounded-full text-sm">
             Contact
           </Link>
+
+          {/* ── Raindrop Auth ── */}
+          <div className="divider divider-horizontal mx-1 h-5 self-center" />
+
+          {loggedIn ? (
+            <div className="dropdown dropdown-end">
+              <button
+                id="btn-raindrop-user-menu"
+                tabIndex={0}
+                className="btn btn-ghost btn-sm rounded-full gap-2 pr-3"
+                title="Raindrop.io account"
+              >
+                {loadingUser ? (
+                  <span className="loading loading-spinner loading-xs" />
+                ) : user ? (
+                  <>
+                    {/* Gravatar avatar */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={gravatarUrl(user.email_MD5, 48)}
+                      alt={user.fullName}
+                      width={20}
+                      height={20}
+                      className="rounded-full size-5 object-cover ring-1 ring-base-300"
+                    />
+                    <span className="text-sm font-normal max-w-[10rem] truncate">
+                      {user.fullName}
+                    </span>
+                    {user.pro && (
+                      <span className="badge badge-primary badge-xs">Pro</span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <RaindropIcon className="size-4 opacity-70" />
+                    <span className="text-sm font-normal">Connected</span>
+                  </>
+                )}
+                <svg
+                  className="size-3 opacity-40"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </svg>
+              </button>
+
+              {/* Dropdown menu */}
+              <ul
+                tabIndex={0}
+                className="dropdown-content menu bg-base-200 border border-base-300/50 rounded-2xl shadow-lg z-50 w-52 p-2 mt-1 text-sm"
+              >
+                {user && (
+                  <li className="menu-title px-3 py-1.5 opacity-50 text-xs truncate">
+                    {user.email}
+                  </li>
+                )}
+                <li>
+                  <button
+                    id="btn-raindrop-logout"
+                    onClick={logout}
+                    className="text-error hover:bg-error/10 rounded-xl"
+                  >
+                    <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    Disconnect
+                  </button>
+                </li>
+              </ul>
+            </div>
+          ) : (
+            <button
+              id="btn-raindrop-login"
+              onClick={login}
+              className="btn btn-outline btn-sm rounded-full text-sm gap-2"
+              title="Connect Raindrop.io"
+            >
+              <RaindropIcon className="size-4" />
+              Connect Raindrop
+            </button>
+          )}
         </div>
       </nav>
+
+      {/* Auth status banner */}
+      {loggedIn && user && (
+        <div className="bg-success/10 border-b border-success/20 text-success text-xs text-center py-1.5 px-4">
+          ✓ Connected as <strong>{user.fullName}</strong> — access token stored locally
+        </div>
+      )}
 
       {/* Hero */}
       <section className="flex-1 flex flex-col items-center justify-center text-center px-6 py-24 max-w-3xl mx-auto w-full">
@@ -34,7 +184,7 @@ export default function HomePage() {
         </h1>
         <p className="text-base-content/60 text-lg max-w-xl leading-relaxed mb-10">
           I design and build thoughtful interfaces that are simple, fast, and
-          a pleasure to use. Let's make something great together.
+          a pleasure to use. Let&apos;s make something great together.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link href="#work" className="btn btn-primary rounded-full px-8">
@@ -122,7 +272,7 @@ export default function HomePage() {
               Focused on craft &amp; clarity
             </h2>
             <p className="text-base-content/60 leading-relaxed mb-4">
-              I'm a designer and developer who believes great products come from
+              I&apos;m a designer and developer who believes great products come from
               the intersection of strong aesthetics and clean engineering.
             </p>
             <p className="text-base-content/60 leading-relaxed">
@@ -153,11 +303,11 @@ export default function HomePage() {
             Get In Touch
           </p>
           <h2 className="text-4xl font-bold tracking-tight mb-4">
-            Let's work together
+            Let&apos;s work together
           </h2>
           <p className="text-base-content/55 max-w-md mx-auto mb-8 leading-relaxed">
-            Have a project in mind? I'd love to hear about it. Drop me a message
-            and let's build something meaningful.
+            Have a project in mind? I&apos;d love to hear about it. Drop me a message
+            and let&apos;s build something meaningful.
           </p>
           <a
             href="mailto:hello@canvas.dev"
@@ -180,5 +330,21 @@ export default function HomePage() {
         </div>
       </footer>
     </main>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Raindrop logo icon (simplified drop shape)
+// ---------------------------------------------------------------------------
+function RaindropIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M12 2C12 2 4 10.5 4 15a8 8 0 0016 0C20 10.5 12 2 12 2z" />
+    </svg>
   );
 }
