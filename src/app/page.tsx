@@ -13,6 +13,7 @@ import {
 } from "@/lib/raindrop";
 import { fetchCharacters, type Character } from "@/lib/characters";
 import { fetchStylePacks, type StylePack } from "@/lib/styles";
+import { generatePromptPdf } from "@/lib/pdf";
 
 // ---------------------------------------------------------------------------
 // Auth + user hook
@@ -151,6 +152,9 @@ export default function HomePage() {
   const [instruction, setInstruction] = useState("");
   const [ratio, setRatio] = useState("auto");
 
+  // PDF generation state
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+
   const toggleCharacter = (id: number) => {
     setSelectedCharacterIds((prev) => {
       const next = new Set(prev);
@@ -165,6 +169,25 @@ export default function HomePage() {
 
   const toggleStyle = (id: number) => {
     setSelectedStyleId((prev) => (prev === id ? null : id));
+  };
+
+  const handleGeneratePdf = async () => {
+    if (pdfGenerating) return;
+    setPdfGenerating(true);
+    try {
+      const selectedCharacters = characters.filter((c) =>
+        selectedCharacterIds.has(c.id)
+      );
+      const selectedStyle = styles.find((s) => s.id === selectedStyleId) ?? null;
+      await generatePromptPdf({
+        characters: selectedCharacters,
+        stylePack: selectedStyle,
+        instruction,
+        ratio,
+      });
+    } finally {
+      setPdfGenerating(false);
+    }
   };
 
   return (
@@ -453,6 +476,51 @@ export default function HomePage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Generate PDF button */}
+          <div className="flex items-center gap-4 pt-2">
+            <button
+              id="btn-generate-pdf"
+              onClick={handleGeneratePdf}
+              disabled={pdfGenerating || !loggedIn}
+              className="btn btn-primary gap-2 rounded-full px-6 shadow-md hover:shadow-lg transition-shadow"
+            >
+              {pdfGenerating ? (
+                <>
+                  <span className="loading loading-spinner loading-sm" />
+                  Building PDF…
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="size-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="12" y1="18" x2="12" y2="12" />
+                    <line x1="9" y1="15" x2="15" y2="15" />
+                  </svg>
+                  Generate PDF
+                </>
+              )}
+            </button>
+            {!loggedIn && (
+              <span className="text-sm text-base-content/40">
+                Connect Raindrop first
+              </span>
+            )}
+            {loggedIn && selectedCharacterIds.size === 0 && selectedStyleId === null && (
+              <span className="text-sm text-base-content/40">
+                Select characters and/or a style to include them
+              </span>
+            )}
           </div>
         </div>
       </section>
