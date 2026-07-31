@@ -426,13 +426,6 @@ export default function HomePage() {
         id="prompt-controls"
         className="py-10 px-6 max-w-5xl mx-auto w-full"
       >
-        <div className="mb-6">
-          <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
-            Canvas · Generate
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight">Prompt</h2>
-        </div>
-
         <div className="flex flex-col gap-6">
           {/* Generate PDF button */}
           <div className="flex items-center gap-4 pt-2">
