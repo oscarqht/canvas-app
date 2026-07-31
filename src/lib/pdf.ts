@@ -291,12 +291,9 @@ export async function generatePromptPdf(
   }
 
   // ── 1. Resolve all images concurrently ────────────────────────────────────
-  const [charImageDataUrls, styleImageDataUrls] = await Promise.all([
-    resolveImages(characters.map((c) => c.imageUrl).filter(Boolean)),
-    stylePack
-      ? resolveImages(stylePack.referenceImages.filter(Boolean))
-      : Promise.resolve([] as string[]),
-  ]);
+  const styleImageDataUrls = stylePack
+    ? await resolveImages(stylePack.referenceImages.filter(Boolean))
+    : [];
 
   // ── 2. Build character prompts text ───────────────────────────────────────
   const characterPrompts = characters
@@ -350,12 +347,6 @@ Priority rules:`;
     "Governs what appears, scene layout, framing, camera, and spatial arrangement."
   );
 
-  writeLabel(state, "User instruction:");
-  writeBody(state, instruction || "(no instruction provided)");
-
-  writeLabel(state, "Attachments:");
-  writeBody(state, "pls see other attached files and images.");
-
   drawDivider(state);
 
   // ── 7. Section 2 — Character Identity ────────────────────────────────────
@@ -370,11 +361,6 @@ Priority rules:`;
     writeMono(state, characterPrompts);
   } else {
     writeBody(state, "(no characters selected)");
-  }
-
-  if (charImageDataUrls.length > 0) {
-    writeLabel(state, "Character reference images:");
-    await writeImageRow(state, charImageDataUrls);
   }
 
   drawDivider(state);
