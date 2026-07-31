@@ -9,7 +9,7 @@
  * Images are fetched server-side via /api/image-proxy to avoid CORS.
  */
 
-import { jsPDF } from "jspdf";
+
 import type { Character } from "./characters";
 import type { StylePack } from "./styles";
 
@@ -65,8 +65,11 @@ const COLOR_PAGE_BG: [number, number, number] = [248, 249, 252];
 // PDF writer state
 // ---------------------------------------------------------------------------
 
+import { DocumentWriter } from "./DocumentWriter";
+import { PdfWriter } from "./PdfWriter";
+
 interface WriterState {
-  doc: jsPDF;
+  doc: DocumentWriter;
   y: number;
   pageCount: number;
 }
@@ -237,15 +240,7 @@ async function writeImageRow(
 
     ensureSpace(state, imgH + gap);
 
-    try {
-      state.doc.addImage(dataUrl, "JPEG", MARGIN, state.y, imgW, imgH);
-    } catch {
-      try {
-        state.doc.addImage(dataUrl, MARGIN, state.y, imgW, imgH);
-      } catch {
-        // skip broken images silently
-      }
-    }
+    await state.doc.addImage(dataUrl, "JPEG", MARGIN, state.y, imgW, imgH);
 
     state.y += imgH + gap;
   }
@@ -261,28 +256,56 @@ export interface GeneratePdfOptions {
   stylePack: StylePack | null;
 }
 
-export async function generatePromptPdf(
+
+export type Format = "pdf" | "jpg";
+
+export interface GeneratePdfOptions {
+  characters: Character[];
+  stylePack: StylePack | null;
+  format?: Format;
+}
+
+export async function generatePromptDocument(
   options: GeneratePdfOptions
 ): Promise<void> {
-  const { characters, stylePack } = options;
+  const { characters, stylePack, format = "pdf" } = options;
+
+  let doc: DocumentWriter;
+  if (format === "jpg") {
+    // Lazy import JpgWriter to avoid next.js SSR issues if it relies on window/document
+    const { JpgWriter } = await import("./JpgWriter");
+    doc = new JpgWriter();
+  } else {
+    doc = new PdfWriter();
+  }
 
   // ── 0. Load custom font for CJK support ──────────────────────────────────
-  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-
   try {
     const fontRes = await fetch("/fonts/LXGWWenKaiLite-Regular.ttf");
     if (fontRes.ok) {
       const fontBuffer = await fontRes.arrayBuffer();
-      const base64Font = btoa(
-        new Uint8Array(fontBuffer).reduce(
-          (data, byte) => data + String.fromCharCode(byte),
-          ""
-        )
-      );
-      doc.addFileToVFS("LXGWWenKaiLite-Regular.ttf", base64Font);
-      doc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "normal");
-      doc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "bold");
-      doc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "bolditalic");
+      if (format === "pdf") {
+        const base64Font = btoa(
+          new Uint8Array(fontBuffer).reduce(
+            (data, byte) => data + String.fromCharCode(byte),
+            ""
+          )
+        );
+        const rawDoc = (doc as PdfWriter).rawDoc;
+        rawDoc.addFileToVFS("LXGWWenKaiLite-Regular.ttf", base64Font);
+        rawDoc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "normal");
+        rawDoc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "bold");
+        rawDoc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "bolditalic");
+      } else if (format === "jpg") {
+        // use FontFace api to load it into document
+        try {
+          const font = new FontFace("LXGW WenKai Lite", fontBuffer);
+          await font.load();
+          document.fonts.add(font);
+        } catch (e) {
+          console.warn("Failed to load FontFace", e);
+        }
+      }
     }
   } catch (err) {
     console.warn("Failed to load custom font:", err);
@@ -301,9 +324,6 @@ export async function generatePromptPdf(
       return lines.join("\n");
     })
     .join("\n\n");
-
-  // ── 3. Create document ────────────────────────────────────────────────────
-  // (doc is created above to register fonts)
 
   // Initial page background
   doc.setFillColor(...COLOR_PAGE_BG);
@@ -427,5 +447,5 @@ Priority rules:`;
 
   // ── 12. Save ───────────────────────────────────────────────────────────────
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  doc.save(`canvas-prompt-${timestamp}.pdf`);
+  await doc.save(`canvas-prompt-${timestamp}.${format}`);
 }

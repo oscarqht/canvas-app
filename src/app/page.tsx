@@ -13,7 +13,7 @@ import {
 } from "@/lib/raindrop";
 import { fetchCharacters, type Character } from "@/lib/characters";
 import { fetchStylePacks, type StylePack } from "@/lib/styles";
-import { generatePromptPdf } from "@/lib/pdf";
+import { generatePromptDocument } from "@/lib/pdf";
 
 // ---------------------------------------------------------------------------
 // Auth + user hook
@@ -191,7 +191,7 @@ export default function HomePage() {
     });
   };
 
-  const handleGeneratePdf = async () => {
+  const handleGenerateDocument = async (format: "pdf" | "jpg") => {
     if (pdfGenerating) return;
     setPdfGenerating(true);
     setToast(null);
@@ -204,13 +204,14 @@ export default function HomePage() {
         selectedCharacterIds.has(c.id)
       );
       const selectedStyle = styles.find((s) => s.id === selectedStyleId) ?? null;
-      await generatePromptPdf({
+      await generatePromptDocument({
         characters: selectedCharacters,
         stylePack: selectedStyle,
+        format
       });
-      setToast({ message: "PDF generated successfully!", type: "success" });
+      setToast({ message: `${format.toUpperCase()} generated successfully!`, type: "success" });
     } catch (e) {
-      setToast({ message: e instanceof Error ? e.message : "Failed to generate PDF", type: "error" });
+      setToast({ message: e instanceof Error ? e.message : `Failed to generate ${format.toUpperCase()}`, type: "error" });
     } finally {
       setPdfGenerating(false);
       toastTimeoutRef.current = setTimeout(() => setToast(null), 3000);
@@ -487,7 +488,7 @@ export default function HomePage() {
           <div className="flex items-center gap-4 pt-2">
             <button
               id="btn-generate-pdf"
-              onClick={handleGeneratePdf}
+              onClick={() => handleGenerateDocument('pdf')}
               disabled={pdfGenerating || !loggedIn}
               className="btn btn-primary gap-2 rounded-full px-6 shadow-md hover:shadow-lg transition-shadow"
             >
@@ -513,6 +514,36 @@ export default function HomePage() {
                     <line x1="9" y1="15" x2="15" y2="15" />
                   </svg>
                   Generate PDF
+                </>
+              )}
+            </button>
+            <button
+              id="btn-generate-jpg"
+              onClick={() => handleGenerateDocument('jpg')}
+              disabled={pdfGenerating || !loggedIn}
+              className="btn btn-secondary gap-2 rounded-full px-6 shadow-md hover:shadow-lg transition-shadow"
+            >
+              {pdfGenerating ? (
+                <>
+                  <span className="loading loading-spinner loading-sm" />
+                  Building JPG…
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="size-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                  Generate JPG
                 </>
               )}
             </button>
