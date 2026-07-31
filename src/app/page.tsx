@@ -11,9 +11,19 @@ import {
   gravatarUrl,
   type RaindropUser,
 } from "@/lib/raindrop";
-import { fetchCharacters, type Character } from "@/lib/characters";
-import { fetchStylePacks, type StylePack } from "@/lib/styles";
-import { generatePromptPdf } from "@/lib/pdf";
+import {
+  fetchCharacters,
+  getCachedCharacters,
+  setCachedCharacters,
+  type Character,
+} from "@/lib/characters";
+import {
+  fetchStylePacks,
+  getCachedStylePacks,
+  setCachedStylePacks,
+  type StylePack,
+} from "@/lib/styles";
+import { generatePromptDocument } from "@/lib/pdf";
 
 // ---------------------------------------------------------------------------
 // Auth + user hook
@@ -69,11 +79,19 @@ function useCharacters(loggedIn: boolean) {
       setCharacters([]);
       return;
     }
+
+    // Load from cache immediately if present so UI renders right away
+    const cached = getCachedCharacters();
+    if (cached && cached.length > 0) {
+      setCharacters(cached);
+    }
+
     setLoading(true);
     setError(null);
     try {
       const chars = await fetchCharacters();
       setCharacters(chars);
+      setCachedCharacters(chars);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load characters");
     } finally {
@@ -101,11 +119,19 @@ function useStyles(loggedIn: boolean) {
       setStyles([]);
       return;
     }
+
+    // Load from cache immediately if present so UI renders right away
+    const cached = getCachedStylePacks();
+    if (cached && cached.length > 0) {
+      setStyles(cached);
+    }
+
     setLoading(true);
     setError(null);
     try {
       const packs = await fetchStylePacks();
       setStyles(packs);
+      setCachedStylePacks(packs);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load styles");
     } finally {
@@ -191,7 +217,7 @@ export default function HomePage() {
     });
   };
 
-  const handleGeneratePdf = async () => {
+  const handleGenerateDocument = async (format: "pdf" | "jpg") => {
     if (pdfGenerating) return;
     setPdfGenerating(true);
     setToast(null);
@@ -204,13 +230,14 @@ export default function HomePage() {
         selectedCharacterIds.has(c.id)
       );
       const selectedStyle = styles.find((s) => s.id === selectedStyleId) ?? null;
-      await generatePromptPdf({
+      await generatePromptDocument({
         characters: selectedCharacters,
         stylePack: selectedStyle,
+        format
       });
-      setToast({ message: "PDF generated successfully!", type: "success" });
+      setToast({ message: `${format.toUpperCase()} generated successfully!`, type: "success" });
     } catch (e) {
-      setToast({ message: e instanceof Error ? e.message : "Failed to generate PDF", type: "error" });
+      setToast({ message: e instanceof Error ? e.message : `Failed to generate ${format.toUpperCase()}`, type: "error" });
     } finally {
       setPdfGenerating(false);
       toastTimeoutRef.current = setTimeout(() => setToast(null), 3000);
@@ -218,7 +245,7 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-base-100 text-base-content flex flex-col">
+    <main className="min-h-screen bg-base-100 text-base-content flex flex-col pb-16">
       {/* Navbar */}
       <nav className="navbar max-w-5xl mx-auto w-full px-6 py-4">
         <div className="flex-1">
@@ -310,14 +337,26 @@ export default function HomePage() {
         </div>
       </nav>
 
+      <div className="max-w-5xl mx-auto w-full px-6">
+        <hr className="border-base-300/40" />
+      </div>
+
       {/* Characters Section */}
-      <section id="characters" className="flex-1 py-10 px-6 max-w-5xl mx-auto w-full">
+      <section id="characters" className="py-6 px-6 max-w-5xl mx-auto w-full">
         <div className="mb-6 flex items-end justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
               Raindrop · Canvas
             </p>
-            <h1 className="text-3xl font-bold tracking-tight">Characters</h1>
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+              Characters
+              {loggedIn && charsLoading && characters.length > 0 && (
+                <span
+                  className="loading loading-spinner loading-xs text-primary"
+                  title="Refreshing characters..."
+                />
+              )}
+            </h1>
           </div>
           {selectedCharacterIds.size > 0 && (
             <span className="badge badge-primary badge-lg gap-1.5">
@@ -328,7 +367,7 @@ export default function HomePage() {
 
         {/* Not logged in */}
         {!loggedIn && (
-          <div className="flex flex-col items-center justify-center py-32 gap-4 text-center">
+          <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
             <RaindropIcon className="size-10 text-base-content/20" />
             <p className="text-base-content/50">
               Connect your Raindrop account to browse characters.
@@ -343,9 +382,9 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Loading */}
-        {loggedIn && charsLoading && (
-          <div className="flex items-center justify-center py-32">
+        {/* Loading (only when no cached characters available) */}
+        {loggedIn && charsLoading && characters.length === 0 && (
+          <div className="flex items-center justify-center py-12">
             <span className="loading loading-spinner loading-lg text-primary" />
           </div>
         )}
@@ -355,7 +394,7 @@ export default function HomePage() {
           <div role="alert" className="alert alert-error">
             <svg className="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
             <span>{charsError}</span>
@@ -364,7 +403,7 @@ export default function HomePage() {
 
         {/* Empty state */}
         {loggedIn && !charsLoading && !charsError && characters.length === 0 && (
-          <div className="text-center py-32 text-base-content/40">
+          <div className="text-center py-12 text-base-content/40">
             <p className="text-lg">No characters found.</p>
             <p className="text-sm mt-1">
               Make sure your Raindrop account has a root collection named &ldquo;Canvas&rdquo; with a child collection named &ldquo;Characters&rdquo; containing image items.
@@ -373,7 +412,7 @@ export default function HomePage() {
         )}
 
         {/* Chips */}
-        {loggedIn && !charsLoading && characters.length > 0 && chips.length > 0 && (
+        {loggedIn && characters.length > 0 && chips.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-6">
             {chips.map((chip) => {
               const active = isChipActive(chip);
@@ -393,7 +432,7 @@ export default function HomePage() {
         )}
 
         {/* Grid — multi-select */}
-        {loggedIn && !charsLoading && characters.length > 0 && (
+        {loggedIn && characters.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {characters.map((char) => (
               <CharacterCard
@@ -407,14 +446,26 @@ export default function HomePage() {
         )}
       </section>
 
+      <div className="max-w-5xl mx-auto w-full px-6">
+        <hr className="border-base-300/40" />
+      </div>
+
       {/* Styles Section */}
-      <section id="styles" className="flex-1 py-10 px-6 max-w-5xl mx-auto w-full">
+      <section id="styles" className="py-6 px-6 max-w-5xl mx-auto w-full">
         <div className="mb-6 flex items-end justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
               Raindrop · Canvas
             </p>
-            <h2 className="text-3xl font-bold tracking-tight">Styles</h2>
+            <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+              Styles
+              {loggedIn && stylesLoading && styles.length > 0 && (
+                <span
+                  className="loading loading-spinner loading-xs text-secondary"
+                  title="Refreshing styles..."
+                />
+              )}
+            </h2>
           </div>
           {selectedStyleId !== null && (
             <span className="badge badge-secondary badge-lg">1 selected</span>
@@ -423,7 +474,7 @@ export default function HomePage() {
 
         {/* Not logged in */}
         {!loggedIn && (
-          <div className="flex flex-col items-center justify-center py-32 gap-4 text-center">
+          <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
             <RaindropIcon className="size-10 text-base-content/20" />
             <p className="text-base-content/50">
               Connect your Raindrop account to browse styles.
@@ -431,9 +482,9 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Loading */}
-        {loggedIn && stylesLoading && (
-          <div className="flex items-center justify-center py-32">
+        {/* Loading (only when no cached styles available) */}
+        {loggedIn && stylesLoading && styles.length === 0 && (
+          <div className="flex items-center justify-center py-12">
             <span className="loading loading-spinner loading-lg text-primary" />
           </div>
         )}
@@ -443,7 +494,7 @@ export default function HomePage() {
           <div role="alert" className="alert alert-error">
             <svg className="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
             <span>{stylesError}</span>
@@ -452,7 +503,7 @@ export default function HomePage() {
 
         {/* Empty state */}
         {loggedIn && !stylesLoading && !stylesError && styles.length === 0 && (
-          <div className="text-center py-32 text-base-content/40">
+          <div className="text-center py-12 text-base-content/40">
             <p className="text-lg">No style packs found.</p>
             <p className="text-sm mt-1">
               Make sure your Raindrop account has a root collection named &ldquo;Canvas&rdquo; with a child collection named &ldquo;Styles&rdquo; containing style pack sub-collections.
@@ -461,7 +512,7 @@ export default function HomePage() {
         )}
 
         {/* Grid — single-select */}
-        {loggedIn && !stylesLoading && styles.length > 0 && (
+        {loggedIn && styles.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {styles.map((pack) => (
               <StylePackCard
@@ -475,19 +526,23 @@ export default function HomePage() {
         )}
       </section>
 
+      <div className="max-w-5xl mx-auto w-full px-6">
+        <hr className="border-base-300/40" />
+      </div>
+
       {/* ------------------------------------------------------------------ */}
       {/* Prompt Controls Section                                             */}
       {/* ------------------------------------------------------------------ */}
       <section
         id="prompt-controls"
-        className="py-10 px-6 max-w-5xl mx-auto w-full"
+        className="py-6 px-6 max-w-5xl mx-auto w-full"
       >
         <div className="flex flex-col gap-6">
           {/* Generate PDF button */}
           <div className="flex items-center gap-4 pt-2">
             <button
               id="btn-generate-pdf"
-              onClick={handleGeneratePdf}
+              onClick={() => handleGenerateDocument('pdf')}
               disabled={pdfGenerating || !loggedIn}
               className="btn btn-primary gap-2 rounded-full px-6 shadow-md hover:shadow-lg transition-shadow"
             >

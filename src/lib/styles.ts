@@ -15,6 +15,7 @@ import {
   getRaindrops,
   type RaindropItem,
 } from "./raindrop";
+import { STORAGE_KEYS } from "./auth";
 
 export interface StylePack {
   id: number;
@@ -27,6 +28,34 @@ export interface StylePack {
   extraInstruction: string;
   /** Reference image URLs from items named "reference-<N><ext>" */
   referenceImages: string[];
+}
+
+// ---------------------------------------------------------------------------
+// LocalStorage Cache Helpers
+// ---------------------------------------------------------------------------
+
+export function getCachedStylePacks(): StylePack[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.STYLES_CACHE);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedStylePacks(styles: StylePack[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.STYLES_CACHE, JSON.stringify(styles));
+  } catch (e) {
+    console.error("Failed to save styles cache to localStorage", e);
+  }
+}
+
+export function clearCachedStylePacks(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(STORAGE_KEYS.STYLES_CACHE);
 }
 
 /** Returns the best available image URL for a raindrop item. */

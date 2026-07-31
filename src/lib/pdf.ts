@@ -9,7 +9,7 @@
  * Images are fetched server-side via /api/image-proxy to avoid CORS.
  */
 
-import { jsPDF } from "jspdf";
+
 import type { Character } from "./characters";
 import type { StylePack } from "./styles";
 
@@ -65,16 +65,24 @@ const COLOR_PAGE_BG: [number, number, number] = [248, 249, 252];
 // PDF writer state
 // ---------------------------------------------------------------------------
 
+import { DocumentWriter } from "./DocumentWriter";
+import { PdfWriter } from "./PdfWriter";
+
 interface WriterState {
-  doc: jsPDF;
+  doc: DocumentWriter;
   y: number;
   pageCount: number;
+  currentPage: number;
+  xMargin: number;
+  contentW: number;
 }
 
 function newPage(state: WriterState): void {
   state.doc.addPage();
   state.pageCount++;
-  state.y = MARGIN;
+  state.currentPage = state.pageCount;
+  state.doc.setPage(state.currentPage);
+  state.y = MARGIN; // initial margin
   // Subtle page background
   state.doc.setFillColor(...COLOR_PAGE_BG);
   state.doc.rect(0, 0, PAGE_W, PAGE_H, "F");
@@ -82,7 +90,13 @@ function newPage(state: WriterState): void {
 
 function ensureSpace(state: WriterState, needed: number): void {
   if (state.y + needed > PAGE_H - MARGIN) {
-    newPage(state);
+    if (state.currentPage < state.pageCount) {
+      state.currentPage++;
+      state.doc.setPage(state.currentPage);
+      state.y = MARGIN;
+    } else {
+      newPage(state);
+    }
   }
 }
 
@@ -90,7 +104,7 @@ function drawDivider(state: WriterState): void {
   ensureSpace(state, 6);
   state.doc.setDrawColor(...COLOR_DIVIDER);
   state.doc.setLineWidth(0.3);
-  state.doc.line(MARGIN, state.y, PAGE_W - MARGIN, state.y);
+  state.doc.line(state.xMargin, state.y, state.xMargin + state.contentW, state.y);
   state.y += 5;
 }
 
@@ -99,7 +113,7 @@ function writeTitle(state: WriterState, text: string): void {
   state.doc.setFont("lxgw", "bold");
   state.doc.setFontSize(FONT_TITLE);
   state.doc.setTextColor(...COLOR_TITLE);
-  state.doc.text(text, MARGIN, state.y);
+  state.doc.text(text, state.xMargin, state.y);
   state.y += 8;
 }
 
@@ -112,17 +126,17 @@ function writeSectionHeader(
   state.y += 3;
   // Accent bar
   state.doc.setFillColor(...COLOR_SECTION);
-  state.doc.rect(MARGIN, state.y - 4, 2, 7, "F");
+  state.doc.rect(state.xMargin, state.y - 4, 2, 7, "F");
   // Number badge
   if (number) {
     state.doc.setFillColor(...COLOR_SECTION);
-    state.doc.roundedRect(MARGIN + 4, state.y - 4, 6, 6, 1, 1, "F");
+    state.doc.roundedRect(state.xMargin + 4, state.y - 4, 6, 6, 1, 1, "F");
     state.doc.setFont("lxgw", "bold");
     state.doc.setFontSize(7);
     state.doc.setTextColor(255, 255, 255);
-    state.doc.text(number, MARGIN + 7, state.y - 0.3, { align: "center" });
+    state.doc.text(number, state.xMargin + 7, state.y - 0.3, { align: "center" });
   }
-  const xText = number ? MARGIN + 13 : MARGIN + 6;
+  const xText = number ? state.xMargin + 13 : state.xMargin + 6;
   state.doc.setFont("lxgw", "bold");
   state.doc.setFontSize(FONT_SECTION);
   state.doc.setTextColor(...COLOR_SECTION);
@@ -135,19 +149,20 @@ function writeLabel(state: WriterState, text: string): void {
   state.doc.setFont("lxgw", "bolditalic");
   state.doc.setFontSize(FONT_BODY - 0.5);
   state.doc.setTextColor(...COLOR_LABEL);
-  state.doc.text(text, MARGIN, state.y);
+  state.doc.text(text, state.xMargin, state.y);
   state.y += 4.5;
 }
 
-function writeBody(state: WriterState, text: string, maxW = CONTENT_W): void {
+function writeBody(state: WriterState, text: string, maxW?: number): void {
   if (!text.trim()) return;
+  const w = maxW ?? state.contentW;
   state.doc.setFont("lxgw", "normal");
   state.doc.setFontSize(FONT_BODY);
   state.doc.setTextColor(...COLOR_BODY);
-  const lines = state.doc.splitTextToSize(text, maxW) as string[];
+  const lines = state.doc.splitTextToSize(text, w) as string[];
   for (const line of lines) {
     ensureSpace(state, 5);
-    state.doc.text(line, MARGIN, state.y);
+    state.doc.text(line, state.xMargin, state.y);
     state.y += 4.5;
   }
   state.y += 1;
@@ -158,10 +173,10 @@ function writeMono(state: WriterState, text: string): void {
   state.doc.setFont("lxgw", "normal");
   state.doc.setFontSize(FONT_MONO);
   state.doc.setTextColor(...COLOR_BODY);
-  const lines = state.doc.splitTextToSize(text, CONTENT_W) as string[];
+  const lines = state.doc.splitTextToSize(text, state.contentW) as string[];
   for (const line of lines) {
     ensureSpace(state, 5);
-    state.doc.text(line, MARGIN, state.y);
+    state.doc.text(line, state.xMargin, state.y);
     state.y += 4;
   }
   state.y += 1;
@@ -232,20 +247,12 @@ async function writeImageRow(
 
   for (let i = 0; i < processed.length; i++) {
     const { dataUrl, w, h } = processed[i];
-    const imgW = CONTENT_W;
+    const imgW = state.contentW;
     const imgH = Math.min(w > 0 ? imgW * (h / w) : imgW, maxImgH);
 
     ensureSpace(state, imgH + gap);
 
-    try {
-      state.doc.addImage(dataUrl, "JPEG", MARGIN, state.y, imgW, imgH);
-    } catch {
-      try {
-        state.doc.addImage(dataUrl, MARGIN, state.y, imgW, imgH);
-      } catch {
-        // skip broken images silently
-      }
-    }
+    await state.doc.addImage(dataUrl, "JPEG", state.xMargin, state.y, imgW, imgH);
 
     state.y += imgH + gap;
   }
@@ -261,28 +268,56 @@ export interface GeneratePdfOptions {
   stylePack: StylePack | null;
 }
 
-export async function generatePromptPdf(
+
+export type Format = "pdf" | "jpg";
+
+export interface GeneratePdfOptions {
+  characters: Character[];
+  stylePack: StylePack | null;
+  format?: Format;
+}
+
+export async function generatePromptDocument(
   options: GeneratePdfOptions
 ): Promise<void> {
-  const { characters, stylePack } = options;
+  const { characters, stylePack, format = "pdf" } = options;
+
+  let doc: DocumentWriter;
+  if (format === "jpg") {
+    // Lazy import JpgWriter to avoid next.js SSR issues if it relies on window/document
+    const { JpgWriter } = await import("./JpgWriter");
+    doc = new JpgWriter();
+  } else {
+    doc = new PdfWriter();
+  }
 
   // ── 0. Load custom font for CJK support ──────────────────────────────────
-  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-
   try {
     const fontRes = await fetch("/fonts/LXGWWenKaiLite-Regular.ttf");
     if (fontRes.ok) {
       const fontBuffer = await fontRes.arrayBuffer();
-      const base64Font = btoa(
-        new Uint8Array(fontBuffer).reduce(
-          (data, byte) => data + String.fromCharCode(byte),
-          ""
-        )
-      );
-      doc.addFileToVFS("LXGWWenKaiLite-Regular.ttf", base64Font);
-      doc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "normal");
-      doc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "bold");
-      doc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "bolditalic");
+      if (format === "pdf") {
+        const base64Font = btoa(
+          new Uint8Array(fontBuffer).reduce(
+            (data, byte) => data + String.fromCharCode(byte),
+            ""
+          )
+        );
+        const rawDoc = (doc as PdfWriter).rawDoc;
+        rawDoc.addFileToVFS("LXGWWenKaiLite-Regular.ttf", base64Font);
+        rawDoc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "normal");
+        rawDoc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "bold");
+        rawDoc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "bolditalic");
+      } else if (format === "jpg") {
+        // use FontFace api to load it into document
+        try {
+          const font = new FontFace("LXGW WenKai Lite", fontBuffer);
+          await font.load();
+          document.fonts.add(font);
+        } catch (e) {
+          console.warn("Failed to load FontFace", e);
+        }
+      }
     }
   } catch (err) {
     console.warn("Failed to load custom font:", err);
@@ -302,14 +337,13 @@ export async function generatePromptPdf(
     })
     .join("\n\n");
 
-  // ── 3. Create document ────────────────────────────────────────────────────
-  // (doc is created above to register fonts)
-
   // Initial page background
   doc.setFillColor(...COLOR_PAGE_BG);
   doc.rect(0, 0, PAGE_W, PAGE_H, "F");
 
-  const state: WriterState = { doc, y: MARGIN, pageCount: 1 };
+  const isJpg = format === "jpg";
+  const contentW = isJpg ? (CONTENT_W - 10) / 2 : CONTENT_W; // 2 columns for JPG, gap of 10mm
+  const state: WriterState = { doc, y: MARGIN, pageCount: 1, currentPage: 1, xMargin: MARGIN, contentW };
 
   // ── 4. Header ─────────────────────────────────────────────────────────────
   state.doc.setFillColor(40, 55, 110);
@@ -381,7 +415,7 @@ Priority rules:`;
     writeBody(state, stylePack.extraInstruction);
   }
 
-  if (styleImageDataUrls.length > 0) {
+  if (!isJpg && styleImageDataUrls.length > 0) {
     writeLabel(state, "Original style reference images:");
     await writeImageRow(state, styleImageDataUrls);
   }
@@ -410,6 +444,17 @@ Priority rules:`;
 
   drawDivider(state);
 
+  // ── 10. Column 2 for JPG (Images) ────────────────────────────────────────
+  if (isJpg && styleImageDataUrls.length > 0) {
+    state.currentPage = 1;
+    state.doc.setPage(1);
+    state.y = 20;
+    state.xMargin = MARGIN + contentW + 10;
+
+    writeLabel(state, "Original style reference images:");
+    await writeImageRow(state, styleImageDataUrls);
+  }
+
   // ── 11. Footer on every page ──────────────────────────────────────────────
   const totalPages = state.doc.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
@@ -427,5 +472,5 @@ Priority rules:`;
 
   // ── 12. Save ───────────────────────────────────────────────────────────────
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  doc.save(`canvas-prompt-${timestamp}.pdf`);
+  await doc.save(`canvas-prompt-${timestamp}.${format}`);
 }
