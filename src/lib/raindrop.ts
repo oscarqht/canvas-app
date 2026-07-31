@@ -68,6 +68,7 @@ export interface RaindropItem {
   type: string;
   cover: string;
   media: { link: string; type: string }[];
+  link: string;
   tags: string[];
 }
 

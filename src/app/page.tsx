@@ -9,6 +9,8 @@ import {
 import {
   getAuthenticatedUser,
   gravatarUrl,
+  getRootCollections,
+  getRaindrops,
   type RaindropUser,
 } from "@/lib/raindrop";
 import {
@@ -176,6 +178,7 @@ export default function HomePage() {
   // Selection state
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<number>>(new Set());
   const [selectedStyleId, setSelectedStyleId] = useState<number | null>(null);
+  const [imageGenerating, setImageGenerating] = useState(false);
 
   // Prompt controls
   const [instruction, setInstruction] = useState("");
@@ -236,6 +239,66 @@ export default function HomePage() {
       }
       return next;
     });
+  };
+
+
+
+
+  const handleGenerateImage = async () => {
+    if (imageGenerating) return;
+    setImageGenerating(true);
+    setToast(null);
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+
+    // Open blank tab immediately to avoid popup blockers
+    const newTab = window.open("about:blank", "_blank");
+
+    try {
+      const roots = await getRootCollections();
+      const canvas = roots.find((c) => c.title.trim().toLowerCase() === "canvas");
+      if (!canvas) {
+        throw new Error("Could not find Canvas root collection.");
+      }
+
+      const items = await getRaindrops(canvas._id);
+      const appItem = items.find((i) => i.title === "Image generation app");
+
+      if (!appItem || !appItem.link) {
+        throw new Error("Could not find 'Image generation app' item with a valid link in Canvas collection.");
+      }
+
+      const selectedCharacters = characters.filter((c) =>
+        selectedCharacterIds.has(c.id)
+      );
+      const selectedStyle = styles.find((s) => s.id === selectedStyleId) ?? null;
+
+      const characterNames = selectedCharacters.map(c => c.name).join(",");
+      const styleName = selectedStyle ? selectedStyle.name : "";
+
+      const url = new URL(appItem.link);
+      if (instruction) url.searchParams.set("instruction", instruction);
+      if (characterNames) url.searchParams.set("characters", characterNames);
+      if (styleName) url.searchParams.set("style", styleName);
+      if (ratio && ratio !== "auto") url.searchParams.set("aspectRatio", ratio);
+
+      if (newTab) {
+        newTab.location.href = url.toString();
+      } else {
+        window.open(url.toString(), "_blank");
+      }
+    } catch (error) {
+      if (newTab) newTab.close();
+      console.error(error);
+      setToast({
+        message: error instanceof Error ? error.message : "An unexpected error occurred.",
+        type: "error"
+      });
+      toastTimeoutRef.current = setTimeout(() => setToast(null), 3000);
+    } finally {
+      setImageGenerating(false);
+    }
   };
 
   const handleGenerateDocument = async (format: "pdf" | "jpg") => {
@@ -598,6 +661,38 @@ export default function HomePage() {
 
           {/* Generate PDF button */}
           <div className="flex items-center gap-4 pt-2">
+            <button
+              id="btn-generate-image"
+              onClick={handleGenerateImage}
+              disabled={imageGenerating || !loggedIn}
+              className="btn btn-secondary gap-2 rounded-full px-6 shadow-md hover:shadow-lg transition-shadow"
+            >
+              {imageGenerating ? (
+                <>
+                  <span className="loading loading-spinner loading-sm" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="size-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                  Generate Image
+                </>
+              )}
+            </button>
+
             <button
               id="btn-generate-pdf"
               onClick={() => handleGenerateDocument('pdf')}
