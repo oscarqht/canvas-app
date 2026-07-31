@@ -219,7 +219,7 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-base-100 text-base-content flex flex-col">
+    <main className="min-h-screen bg-base-100 text-base-content flex flex-col pb-16">
       {/* Navbar */}
       <nav className="navbar max-w-5xl mx-auto w-full px-6 py-4">
         <div className="flex-1">
@@ -311,8 +311,12 @@ export default function HomePage() {
         </div>
       </nav>
 
+      <div className="max-w-5xl mx-auto w-full px-6">
+        <hr className="border-base-300/40" />
+      </div>
+
       {/* Characters Section */}
-      <section id="characters" className="flex-1 py-10 px-6 max-w-5xl mx-auto w-full">
+      <section id="characters" className="py-6 px-6 max-w-5xl mx-auto w-full">
         <div className="mb-6 flex items-end justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
@@ -329,7 +333,7 @@ export default function HomePage() {
 
         {/* Not logged in */}
         {!loggedIn && (
-          <div className="flex flex-col items-center justify-center py-32 gap-4 text-center">
+          <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
             <RaindropIcon className="size-10 text-base-content/20" />
             <p className="text-base-content/50">
               Connect your Raindrop account to browse characters.
@@ -346,7 +350,7 @@ export default function HomePage() {
 
         {/* Loading */}
         {loggedIn && charsLoading && (
-          <div className="flex items-center justify-center py-32">
+          <div className="flex items-center justify-center py-12">
             <span className="loading loading-spinner loading-lg text-primary" />
           </div>
         )}
@@ -356,7 +360,7 @@ export default function HomePage() {
           <div role="alert" className="alert alert-error">
             <svg className="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
             <span>{charsError}</span>
@@ -365,7 +369,7 @@ export default function HomePage() {
 
         {/* Empty state */}
         {loggedIn && !charsLoading && !charsError && characters.length === 0 && (
-          <div className="text-center py-32 text-base-content/40">
+          <div className="text-center py-12 text-base-content/40">
             <p className="text-lg">No characters found.</p>
             <p className="text-sm mt-1">
               Make sure your Raindrop account has a root collection named &ldquo;Canvas&rdquo; with a child collection named &ldquo;Characters&rdquo; containing image items.
@@ -408,8 +412,12 @@ export default function HomePage() {
         )}
       </section>
 
+      <div className="max-w-5xl mx-auto w-full px-6">
+        <hr className="border-base-300/40" />
+      </div>
+
       {/* Styles Section */}
-      <section id="styles" className="flex-1 py-10 px-6 max-w-5xl mx-auto w-full">
+      <section id="styles" className="py-6 px-6 max-w-5xl mx-auto w-full">
         <div className="mb-6 flex items-end justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
@@ -424,7 +432,7 @@ export default function HomePage() {
 
         {/* Not logged in */}
         {!loggedIn && (
-          <div className="flex flex-col items-center justify-center py-32 gap-4 text-center">
+          <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
             <RaindropIcon className="size-10 text-base-content/20" />
             <p className="text-base-content/50">
               Connect your Raindrop account to browse styles.
@@ -434,7 +442,7 @@ export default function HomePage() {
 
         {/* Loading */}
         {loggedIn && stylesLoading && (
-          <div className="flex items-center justify-center py-32">
+          <div className="flex items-center justify-center py-12">
             <span className="loading loading-spinner loading-lg text-primary" />
           </div>
         )}
@@ -444,7 +452,7 @@ export default function HomePage() {
           <div role="alert" className="alert alert-error">
             <svg className="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
             <span>{stylesError}</span>
@@ -453,7 +461,7 @@ export default function HomePage() {
 
         {/* Empty state */}
         {loggedIn && !stylesLoading && !stylesError && styles.length === 0 && (
-          <div className="text-center py-32 text-base-content/40">
+          <div className="text-center py-12 text-base-content/40">
             <p className="text-lg">No style packs found.</p>
             <p className="text-sm mt-1">
               Make sure your Raindrop account has a root collection named &ldquo;Canvas&rdquo; with a child collection named &ldquo;Styles&rdquo; containing style pack sub-collections.
@@ -476,12 +484,16 @@ export default function HomePage() {
         )}
       </section>
 
+      <div className="max-w-5xl mx-auto w-full px-6">
+        <hr className="border-base-300/40" />
+      </div>
+
       {/* ------------------------------------------------------------------ */}
       {/* Prompt Controls Section                                             */}
       {/* ------------------------------------------------------------------ */}
       <section
         id="prompt-controls"
-        className="py-10 px-6 max-w-5xl mx-auto w-full"
+        className="py-6 px-6 max-w-5xl mx-auto w-full"
       >
         <div className="flex flex-col gap-6">
           {/* Generate PDF button */}
