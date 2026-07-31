@@ -342,7 +342,7 @@ Priority rules:`;
   );
   writeBody(
     state,
-    "Governs what appears, scene layout, framing, camera, and spatial arrangement."
+    "Governs what appears, scene layout, framing, camera, and spatial arrangement. Find from user's text message and other file attachments."
   );
 
   drawDivider(state);
