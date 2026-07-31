@@ -85,7 +85,8 @@ export function redirectToRaindropAuth(): void {
     redirect_uri: redirectUri,
   });
 
-  window.location.href = `https://raindrop.io/oauth/authorize?${params.toString()}`;
+  const authUrl = process.env.NEXT_PUBLIC_RAINDROP_AUTH_URL || "https://raindrop.io/oauth/authorize";
+  window.location.href = `${authUrl}?${params.toString()}`;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const RAINDROP_TOKEN_URL = "https://raindrop.io/oauth/access_token";
+const RAINDROP_TOKEN_URL = process.env.RAINDROP_TOKEN_URL || "https://raindrop.io/oauth/access_token";
 
 /**
  * POST /api/auth/refresh

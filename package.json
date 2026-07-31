@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "mock": "node mocks/server.js",
+    "dev:mock": "concurrently \"npm run mock\" \"cross-env NEXT_PUBLIC_RAINDROP_API_URL=http://localhost:4000/rest/v1 RAINDROP_TOKEN_URL=http://localhost:4000/oauth/access_token NEXT_PUBLIC_RAINDROP_AUTH_URL=http://localhost:4000/oauth/authorize next dev\""
   },
   "dependencies": {
     "daisyui": "^5.7.8",
@@ -20,8 +22,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^10.0.4",
+    "cors": "^2.8.6",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "express": "^5.2.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

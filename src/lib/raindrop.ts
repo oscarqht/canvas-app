@@ -5,7 +5,7 @@
 
 import { getValidAccessToken, clearTokens } from "./auth";
 
-const RAINDROP_API = "https://api.raindrop.io/rest/v1";
+const RAINDROP_API = process.env.NEXT_PUBLIC_RAINDROP_API_URL || "https://api.raindrop.io/rest/v1";
 
 export interface RaindropUser {
   _id: number;
