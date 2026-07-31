@@ -18,6 +18,32 @@ function CallbackHandler() {
   const handleCallback = useCallback(async () => {
     const code = searchParams.get("code");
     const error = searchParams.get("error");
+    const state = searchParams.get("state");
+
+    // If a state parameter is present and it doesn't match the current origin,
+    // it means the login was initiated from a preview deployment (or localhost).
+    // Redirect back to that origin to complete the OAuth flow.
+    if (state && state !== window.location.origin) {
+      try {
+        const stateUrl = new URL(state);
+        // Strict security check: only redirect to trusted preview domains or localhost
+        // Ensures only our specific project's Vercel preview URLs are allowed
+        const isTrustedPreview = /^draw-context-.*-treeee\.vercel\.app$/.test(
+          stateUrl.hostname
+        );
+        if (stateUrl.hostname === "localhost" || isTrustedPreview) {
+          const redirectUrl = new URL(window.location.href);
+          redirectUrl.host = stateUrl.host;
+          redirectUrl.protocol = stateUrl.protocol;
+          redirectUrl.port = stateUrl.port;
+
+          window.location.href = redirectUrl.toString();
+          return;
+        }
+      } catch (e) {
+        console.warn("Invalid state URL format:", state);
+      }
+    }
 
     if (error) {
       const messages: Record<string, string> = {

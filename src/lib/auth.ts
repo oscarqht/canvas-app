@@ -92,6 +92,7 @@ export function redirectToRaindropAuth(): void {
     response_type: "code",
     client_id: clientId,
     redirect_uri: redirectUri,
+    state: window.location.origin,
   });
 
   window.location.href = `https://raindrop.io/oauth/authorize?${params.toString()}`;
