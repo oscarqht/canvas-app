@@ -145,5 +145,6 @@ export async function fetchStylePacks(): Promise<StylePack[]> {
     })
   );
 
-  return packs;
+  // Reverse the order of packs to match reverse Raindrop API response
+  return packs.reverse();
 }

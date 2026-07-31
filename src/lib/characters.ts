@@ -112,6 +112,9 @@ export async function fetchCharacters(): Promise<Character[]> {
   // 3. Fetch all raindrops from the "Characters" collection
   const items = await getRaindrops(charactersCollection._id);
 
-  // Filter to image-type items only and map to Character shape
-  return items.filter((item) => item.type === "image").map(toCharacter);
+  // Filter to image-type items only, map to Character shape, and sort alphabetically
+  return items
+    .filter((item) => item.type === "image")
+    .map(toCharacter)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
