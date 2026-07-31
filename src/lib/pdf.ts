@@ -96,7 +96,7 @@ function drawDivider(state: WriterState): void {
 
 function writeTitle(state: WriterState, text: string): void {
   ensureSpace(state, 12);
-  state.doc.setFont("helvetica", "bold");
+  state.doc.setFont("lxgw", "bold");
   state.doc.setFontSize(FONT_TITLE);
   state.doc.setTextColor(...COLOR_TITLE);
   state.doc.text(text, MARGIN, state.y);
@@ -117,13 +117,13 @@ function writeSectionHeader(
   if (number) {
     state.doc.setFillColor(...COLOR_SECTION);
     state.doc.roundedRect(MARGIN + 4, state.y - 4, 6, 6, 1, 1, "F");
-    state.doc.setFont("helvetica", "bold");
+    state.doc.setFont("lxgw", "bold");
     state.doc.setFontSize(7);
     state.doc.setTextColor(255, 255, 255);
     state.doc.text(number, MARGIN + 7, state.y - 0.3, { align: "center" });
   }
   const xText = number ? MARGIN + 13 : MARGIN + 6;
-  state.doc.setFont("helvetica", "bold");
+  state.doc.setFont("lxgw", "bold");
   state.doc.setFontSize(FONT_SECTION);
   state.doc.setTextColor(...COLOR_SECTION);
   state.doc.text(text, xText, state.y);
@@ -132,7 +132,7 @@ function writeSectionHeader(
 
 function writeLabel(state: WriterState, text: string): void {
   ensureSpace(state, 6);
-  state.doc.setFont("helvetica", "bolditalic");
+  state.doc.setFont("lxgw", "bolditalic");
   state.doc.setFontSize(FONT_BODY - 0.5);
   state.doc.setTextColor(...COLOR_LABEL);
   state.doc.text(text, MARGIN, state.y);
@@ -141,7 +141,7 @@ function writeLabel(state: WriterState, text: string): void {
 
 function writeBody(state: WriterState, text: string, maxW = CONTENT_W): void {
   if (!text.trim()) return;
-  state.doc.setFont("helvetica", "normal");
+  state.doc.setFont("lxgw", "normal");
   state.doc.setFontSize(FONT_BODY);
   state.doc.setTextColor(...COLOR_BODY);
   const lines = state.doc.splitTextToSize(text, maxW) as string[];
@@ -155,7 +155,7 @@ function writeBody(state: WriterState, text: string, maxW = CONTENT_W): void {
 
 function writeMono(state: WriterState, text: string): void {
   if (!text.trim()) return;
-  state.doc.setFont("courier", "normal");
+  state.doc.setFont("lxgw", "normal");
   state.doc.setFontSize(FONT_MONO);
   state.doc.setTextColor(...COLOR_BODY);
   const lines = state.doc.splitTextToSize(text, CONTENT_W) as string[];
@@ -268,6 +268,28 @@ export async function generatePromptPdf(
 ): Promise<void> {
   const { characters, stylePack, instruction, ratio } = options;
 
+  // ── 0. Load custom font for CJK support ──────────────────────────────────
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+
+  try {
+    const fontRes = await fetch("/fonts/LXGWWenKaiLite-Regular.ttf");
+    if (fontRes.ok) {
+      const fontBuffer = await fontRes.arrayBuffer();
+      const base64Font = btoa(
+        new Uint8Array(fontBuffer).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ""
+        )
+      );
+      doc.addFileToVFS("LXGWWenKaiLite-Regular.ttf", base64Font);
+      doc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "normal");
+      doc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "bold");
+      doc.addFont("LXGWWenKaiLite-Regular.ttf", "lxgw", "bolditalic");
+    }
+  } catch (err) {
+    console.warn("Failed to load custom font:", err);
+  }
+
   // ── 1. Resolve all images concurrently ────────────────────────────────────
   const [charImageDataUrls, styleImageDataUrls] = await Promise.all([
     resolveImages(characters.map((c) => c.imageUrl).filter(Boolean)),
@@ -286,7 +308,7 @@ export async function generatePromptPdf(
     .join("\n\n");
 
   // ── 3. Create document ────────────────────────────────────────────────────
-  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  // (doc is created above to register fonts)
 
   // Initial page background
   doc.setFillColor(...COLOR_PAGE_BG);
@@ -297,7 +319,7 @@ export async function generatePromptPdf(
   // ── 4. Header ─────────────────────────────────────────────────────────────
   state.doc.setFillColor(40, 55, 110);
   state.doc.rect(0, 0, PAGE_W, 14, "F");
-  state.doc.setFont("helvetica", "bold");
+  state.doc.setFont("lxgw", "bold");
   state.doc.setFontSize(10);
   state.doc.setTextColor(255, 255, 255);
   state.doc.text("canvas · AI Prompt Sheet", MARGIN, 9);
@@ -413,7 +435,7 @@ Priority rules:`;
   const totalPages = state.doc.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     state.doc.setPage(p);
-    state.doc.setFont("helvetica", "normal");
+    state.doc.setFont("lxgw", "normal");
     state.doc.setFontSize(7);
     state.doc.setTextColor(160, 170, 190);
     state.doc.text(
