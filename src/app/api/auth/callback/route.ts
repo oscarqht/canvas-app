@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const clientId = process.env.RAINDROP_CLIENT_ID;
+    const clientId = process.env.NEXT_PUBLIC_RAINDROP_CLIENT_ID || process.env.RAINDROP_CLIENT_ID;
     const clientSecret = process.env.RAINDROP_CLIENT_SECRET;
     const redirectUri = process.env.NEXT_PUBLIC_RAINDROP_REDIRECT_URI;
 
