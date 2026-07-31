@@ -275,12 +275,14 @@ export interface GeneratePdfOptions {
   characters: Character[];
   stylePack: StylePack | null;
   format?: Format;
+  instruction?: string;
+  ratio?: string;
 }
 
 export async function generatePromptDocument(
   options: GeneratePdfOptions
 ): Promise<void> {
-  const { characters, stylePack, format = "pdf" } = options;
+  const { characters, stylePack, format = "pdf", instruction, ratio } = options;
 
   let doc: DocumentWriter;
   if (format === "jpg") {
@@ -379,6 +381,12 @@ Priority rules:`;
     "Governs what appears, scene layout, framing, camera, and spatial arrangement. Find from user's text message and other file attachments."
   );
 
+  writeLabel(state, "User instruction:");
+  writeBody(state, instruction || "(no instruction provided)");
+
+  writeLabel(state, "Attachments:");
+  writeBody(state, "pls see other attached files and images.");
+
   drawDivider(state);
 
   // ── 7. Section 2 — Character Identity ────────────────────────────────────
@@ -444,7 +452,14 @@ Priority rules:`;
 
   drawDivider(state);
 
-  // ── 10. Column 2 for JPG (Images) ────────────────────────────────────────
+  // ── 10. Section 4 — Misc ──────────────────────────────────────────────────
+  writeSectionHeader(state, "MISC", "4");
+  writeLabel(state, "Ratio:");
+  writeBody(state, ratio || "auto");
+
+  drawDivider(state);
+
+  // ── 11. Column 2 for JPG (Images) ────────────────────────────────────────
   if (isJpg && styleImageDataUrls.length > 0) {
     state.currentPage = 1;
     state.doc.setPage(1);

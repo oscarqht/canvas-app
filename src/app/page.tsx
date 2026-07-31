@@ -146,6 +146,23 @@ function useStyles(loggedIn: boolean) {
   return { styles, loading, error, reload: load };
 }
 
+
+// ---------------------------------------------------------------------------
+// Ratio options
+// ---------------------------------------------------------------------------
+const RATIO_OPTIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "1:1", label: "Square 1:1" },
+  { value: "16:9", label: "Landscape 16:9" },
+  { value: "4:3", label: "Landscape 4:3" },
+  { value: "3:2", label: "Landscape 3:2" },
+  { value: "3:1", label: "Landscape 3:1" },
+  { value: "9:16", label: "Portrait 9:16" },
+  { value: "3:4", label: "Portrait 3:4" },
+  { value: "2:3", label: "Portrait 2:3" },
+  { value: "1:3", label: "Portrait 1:3" },
+];
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -159,6 +176,10 @@ export default function HomePage() {
   // Selection state
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<number>>(new Set());
   const [selectedStyleId, setSelectedStyleId] = useState<number | null>(null);
+
+  // Prompt controls
+  const [instruction, setInstruction] = useState("");
+  const [ratio, setRatio] = useState("auto");
 
   // Chip state (derived)
   const chips = useMemo(() => {
@@ -233,7 +254,9 @@ export default function HomePage() {
       await generatePromptDocument({
         characters: selectedCharacters,
         stylePack: selectedStyle,
-        format
+        format,
+        instruction,
+        ratio,
       });
       setToast({ message: `${format.toUpperCase()} generated successfully!`, type: "success" });
     } catch (e) {
@@ -538,6 +561,41 @@ export default function HomePage() {
         className="py-6 px-6 max-w-5xl mx-auto w-full"
       >
         <div className="flex flex-col gap-6">
+          {/* Instruction textarea */}
+          <div className="form-control gap-2">
+            <label htmlFor="instruction" className="label pb-0">
+              <span className="label-text font-medium">Instruction</span>
+            </label>
+            <textarea
+              id="instruction"
+              className="textarea textarea-bordered w-full min-h-36 resize-y text-sm leading-relaxed focus:textarea-primary transition-colors"
+              placeholder="Describe what you want to generate…"
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+            />
+            {instruction.length > 0 && (
+              <span className="text-xs text-base-content/40 text-right">
+                {instruction.length} chars
+              </span>
+            )}
+          </div>
+
+          {/* Ratio select */}
+          <div className="form-control">
+            <select
+              id="ratio"
+              className="select select-bordered w-full max-w-xs focus:select-primary transition-colors"
+              value={ratio}
+              onChange={(e) => setRatio(e.target.value)}
+            >
+              {RATIO_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Generate PDF button */}
           <div className="flex items-center gap-4 pt-2">
             <button
