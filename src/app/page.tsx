@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   isLoggedIn,
   clearTokens,
@@ -134,6 +134,19 @@ export default function HomePage() {
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<number>>(new Set());
   const [selectedStyleId, setSelectedStyleId] = useState<number | null>(null);
 
+  // Chip state (derived)
+  const chips = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const char of characters) {
+      for (const pattern of char.patterns) {
+        counts[pattern] = (counts[pattern] || 0) + 1;
+      }
+    }
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([pattern]) => pattern);
+  }, [characters]);
+
   // PDF generation state
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -153,6 +166,29 @@ export default function HomePage() {
 
   const toggleStyle = (id: number) => {
     setSelectedStyleId((prev) => (prev === id ? null : id));
+  };
+
+  const isChipActive = (chip: string) => {
+    const matchingChars = characters.filter((c) => c.patterns.includes(chip));
+    if (matchingChars.length === 0) return false;
+    return matchingChars.every((c) => selectedCharacterIds.has(c.id));
+  };
+
+  const toggleChip = (chip: string) => {
+    const matchingChars = characters.filter((c) => c.patterns.includes(chip));
+    const active = isChipActive(chip);
+
+    setSelectedCharacterIds((prev) => {
+      const next = new Set(prev);
+      if (active) {
+        // Deselect all
+        matchingChars.forEach((c) => next.delete(c.id));
+      } else {
+        // Select all
+        matchingChars.forEach((c) => next.add(c.id));
+      }
+      return next;
+    });
   };
 
   const handleGeneratePdf = async () => {
@@ -333,6 +369,26 @@ export default function HomePage() {
             <p className="text-sm mt-1">
               Make sure your Raindrop account has a root collection named &ldquo;Canvas&rdquo; with a child collection named &ldquo;Characters&rdquo; containing image items.
             </p>
+          </div>
+        )}
+
+        {/* Chips */}
+        {loggedIn && !charsLoading && characters.length > 0 && chips.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {chips.map((chip) => {
+              const active = isChipActive(chip);
+              return (
+                <button
+                  key={chip}
+                  onClick={() => toggleChip(chip)}
+                  className={`btn btn-sm rounded-full ${
+                    active ? "btn-primary" : "btn-outline"
+                  }`}
+                >
+                  {chip}
+                </button>
+              );
+            })}
           </div>
         )}
 
