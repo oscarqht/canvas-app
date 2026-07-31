@@ -139,6 +139,8 @@ const RATIO_OPTIONS = [
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
+import { useRef } from "react";
+
 export default function HomePage() {
   const { loggedIn, user, loadingUser, login, logout } = useRaindropAuth();
   const { characters, loading: charsLoading, error: charsError } = useCharacters(loggedIn);
@@ -154,6 +156,8 @@ export default function HomePage() {
 
   // PDF generation state
   const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout>(null);
 
   const toggleCharacter = (id: number) => {
     setSelectedCharacterIds((prev) => {
@@ -174,6 +178,11 @@ export default function HomePage() {
   const handleGeneratePdf = async () => {
     if (pdfGenerating) return;
     setPdfGenerating(true);
+    setToast(null);
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+
     try {
       const selectedCharacters = characters.filter((c) =>
         selectedCharacterIds.has(c.id)
@@ -185,8 +194,12 @@ export default function HomePage() {
         instruction,
         ratio,
       });
+      setToast({ message: "PDF generated successfully!", type: "success" });
+    } catch (e) {
+      setToast({ message: e instanceof Error ? e.message : "Failed to generate PDF", type: "error" });
     } finally {
       setPdfGenerating(false);
+      toastTimeoutRef.current = setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -524,6 +537,14 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {toast && (
+        <div className="toast toast-end z-50">
+          <div className={`alert ${toast.type === "success" ? "alert-success text-success-content" : "alert-error text-error-content"} shadow-lg`}>
+            <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
