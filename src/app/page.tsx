@@ -347,7 +347,7 @@ export default function HomePage() {
 
         {/* Grid — multi-select */}
         {loggedIn && !charsLoading && characters.length > 0 && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {characters.map((char) => (
               <CharacterCard
                 key={char.id}
@@ -415,7 +415,7 @@ export default function HomePage() {
 
         {/* Grid — single-select */}
         {loggedIn && !stylesLoading && styles.length > 0 && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {styles.map((pack) => (
               <StylePackCard
                 key={pack.id}
@@ -584,44 +584,17 @@ function StylePackCard({
         )}
       </div>
 
-      <div className="card-body gap-3 p-4">
+      <div className="card-body gap-1 p-2">
         {/* Pack name */}
         <h3
           className={[
-            "card-title text-base font-semibold transition-colors duration-200",
+            "card-title text-sm font-semibold transition-colors duration-200 truncate block",
             selected ? "text-secondary" : "group-hover:text-secondary",
           ].join(" ")}
+          title={pack.name}
         >
           {pack.name}
         </h3>
-
-        {/* Style prompt (excerpt) */}
-        {pack.stylePrompt && (
-          <p className="text-sm text-base-content/55 leading-relaxed line-clamp-3">
-            {pack.stylePrompt}
-          </p>
-        )}
-
-        {/* Extra instruction (note) */}
-        {pack.extraInstruction && (
-          <p className="text-xs text-base-content/40 italic leading-relaxed line-clamp-2">
-            {pack.extraInstruction}
-          </p>
-        )}
-
-        {/* Reference images count badge */}
-        {pack.referenceImages.length > 0 && (
-          <div className="flex items-center gap-1.5 mt-1">
-            <svg className="size-3.5 text-base-content/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <circle cx="8.5" cy="8.5" r="1.5" />
-              <path d="M21 15l-5-5L5 21" />
-            </svg>
-            <span className="text-xs text-base-content/40">
-              {pack.referenceImages.length} reference{pack.referenceImages.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-        )}
       </div>
     </article>
   );
@@ -687,37 +660,17 @@ function CharacterCard({
         </span>
       </div>
 
-      <div className="card-body gap-3 p-4">
+      <div className="card-body gap-1 p-2">
         {/* Character name */}
         <h2
           className={[
-            "card-title text-base font-semibold transition-colors duration-200",
+            "card-title text-sm font-semibold transition-colors duration-200 truncate block",
             selected ? "text-primary" : "group-hover:text-primary",
           ].join(" ")}
+          title={character.name}
         >
           {character.name}
         </h2>
-
-        {/* Prompt (excerpt) */}
-        {character.prompt && (
-          <p className="text-sm text-base-content/55 leading-relaxed line-clamp-3">
-            {character.prompt}
-          </p>
-        )}
-
-        {/* Matching patterns (note) */}
-        {character.patterns.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-1">
-            {character.patterns.map((pattern) => (
-              <span
-                key={pattern}
-                className="badge badge-ghost badge-sm text-xs font-mono"
-              >
-                {pattern}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
     </article>
   );
