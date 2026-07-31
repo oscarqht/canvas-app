@@ -259,14 +259,12 @@ async function writeImageRow(
 export interface GeneratePdfOptions {
   characters: Character[];
   stylePack: StylePack | null;
-  instruction: string;
-  ratio: string;
 }
 
 export async function generatePromptPdf(
   options: GeneratePdfOptions
 ): Promise<void> {
-  const { characters, stylePack, instruction, ratio } = options;
+  const { characters, stylePack } = options;
 
   // ── 0. Load custom font for CJK support ──────────────────────────────────
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
@@ -411,11 +409,6 @@ Priority rules:`;
   writeBody(state, conflicts);
 
   drawDivider(state);
-
-  // ── 10. Section 4 — Misc ──────────────────────────────────────────────────
-  writeSectionHeader(state, "MISC", "4");
-  writeLabel(state, "Ratio:");
-  writeBody(state, ratio || "auto");
 
   // ── 11. Footer on every page ──────────────────────────────────────────────
   const totalPages = state.doc.getNumberOfPages();
