@@ -167,14 +167,45 @@ function writeMono(state: WriterState, text: string): void {
   state.y += 1;
 }
 
-/** Returns the natural pixel dimensions of a data URL image via the browser Image API. */
-function getImageSize(
+/** Downscales and compresses a data URL image via the browser Image and Canvas API. */
+function processImage(
   dataUrl: string
-): Promise<{ w: number; h: number }> {
+): Promise<{ dataUrl: string; w: number; h: number }> {
   return new Promise((resolve) => {
     const img = new window.Image();
-    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-    img.onerror = () => resolve({ w: 1, h: 1 }); // fallback: square
+    img.onload = () => {
+      let { naturalWidth: w, naturalHeight: h } = img;
+
+      const MAX_SIZE = 800; // max dimension
+      if (w > MAX_SIZE || h > MAX_SIZE) {
+        if (w > h) {
+          h = Math.round(h * (MAX_SIZE / w));
+          w = MAX_SIZE;
+        } else {
+          w = Math.round(w * (MAX_SIZE / h));
+          h = MAX_SIZE;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        // Use white background in case of transparent PNG
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+
+        // Compress to JPEG to save space
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.7);
+        resolve({ dataUrl: compressedDataUrl, w, h });
+      } else {
+        // Fallback
+        resolve({ dataUrl, w, h });
+      }
+    };
+    img.onerror = () => resolve({ dataUrl, w: 1, h: 1 }); // fallback
     img.src = dataUrl;
   });
 }
@@ -196,21 +227,21 @@ async function writeImageRow(
   const gap = 4;
   const maxImgH = PAGE_H - MARGIN * 2 - 10; // never overflow a page
 
-  // Resolve natural sizes for every image up-front.
-  const sizes = await Promise.all(dataUrls.map(getImageSize));
+  // Resolve natural sizes and compress every image up-front.
+  const processed = await Promise.all(dataUrls.map(processImage));
 
-  for (let i = 0; i < dataUrls.length; i++) {
-    const { w, h } = sizes[i];
+  for (let i = 0; i < processed.length; i++) {
+    const { dataUrl, w, h } = processed[i];
     const imgW = CONTENT_W;
     const imgH = Math.min(w > 0 ? imgW * (h / w) : imgW, maxImgH);
 
     ensureSpace(state, imgH + gap);
 
     try {
-      state.doc.addImage(dataUrls[i], "JPEG", MARGIN, state.y, imgW, imgH);
+      state.doc.addImage(dataUrl, "JPEG", MARGIN, state.y, imgW, imgH);
     } catch {
       try {
-        state.doc.addImage(dataUrls[i], MARGIN, state.y, imgW, imgH);
+        state.doc.addImage(dataUrl, MARGIN, state.y, imgW, imgH);
       } catch {
         // skip broken images silently
       }
