@@ -11,8 +11,18 @@ import {
   gravatarUrl,
   type RaindropUser,
 } from "@/lib/raindrop";
-import { fetchCharacters, type Character } from "@/lib/characters";
-import { fetchStylePacks, type StylePack } from "@/lib/styles";
+import {
+  fetchCharacters,
+  getCachedCharacters,
+  setCachedCharacters,
+  type Character,
+} from "@/lib/characters";
+import {
+  fetchStylePacks,
+  getCachedStylePacks,
+  setCachedStylePacks,
+  type StylePack,
+} from "@/lib/styles";
 import { generatePromptDocument } from "@/lib/pdf";
 
 // ---------------------------------------------------------------------------
@@ -69,11 +79,19 @@ function useCharacters(loggedIn: boolean) {
       setCharacters([]);
       return;
     }
+
+    // Load from cache immediately if present so UI renders right away
+    const cached = getCachedCharacters();
+    if (cached && cached.length > 0) {
+      setCharacters(cached);
+    }
+
     setLoading(true);
     setError(null);
     try {
       const chars = await fetchCharacters();
       setCharacters(chars);
+      setCachedCharacters(chars);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load characters");
     } finally {
@@ -101,11 +119,19 @@ function useStyles(loggedIn: boolean) {
       setStyles([]);
       return;
     }
+
+    // Load from cache immediately if present so UI renders right away
+    const cached = getCachedStylePacks();
+    if (cached && cached.length > 0) {
+      setStyles(cached);
+    }
+
     setLoading(true);
     setError(null);
     try {
       const packs = await fetchStylePacks();
       setStyles(packs);
+      setCachedStylePacks(packs);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load styles");
     } finally {
@@ -322,7 +348,15 @@ export default function HomePage() {
             <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
               Raindrop · Canvas
             </p>
-            <h1 className="text-3xl font-bold tracking-tight">Characters</h1>
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+              Characters
+              {loggedIn && charsLoading && characters.length > 0 && (
+                <span
+                  className="loading loading-spinner loading-xs text-primary"
+                  title="Refreshing characters..."
+                />
+              )}
+            </h1>
           </div>
           {selectedCharacterIds.size > 0 && (
             <span className="badge badge-primary badge-lg gap-1.5">
@@ -348,8 +382,8 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Loading */}
-        {loggedIn && charsLoading && (
+        {/* Loading (only when no cached characters available) */}
+        {loggedIn && charsLoading && characters.length === 0 && (
           <div className="flex items-center justify-center py-12">
             <span className="loading loading-spinner loading-lg text-primary" />
           </div>
@@ -378,7 +412,7 @@ export default function HomePage() {
         )}
 
         {/* Chips */}
-        {loggedIn && !charsLoading && characters.length > 0 && chips.length > 0 && (
+        {loggedIn && characters.length > 0 && chips.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-6">
             {chips.map((chip) => {
               const active = isChipActive(chip);
@@ -398,7 +432,7 @@ export default function HomePage() {
         )}
 
         {/* Grid — multi-select */}
-        {loggedIn && !charsLoading && characters.length > 0 && (
+        {loggedIn && characters.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {characters.map((char) => (
               <CharacterCard
@@ -423,7 +457,15 @@ export default function HomePage() {
             <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
               Raindrop · Canvas
             </p>
-            <h2 className="text-3xl font-bold tracking-tight">Styles</h2>
+            <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+              Styles
+              {loggedIn && stylesLoading && styles.length > 0 && (
+                <span
+                  className="loading loading-spinner loading-xs text-secondary"
+                  title="Refreshing styles..."
+                />
+              )}
+            </h2>
           </div>
           {selectedStyleId !== null && (
             <span className="badge badge-secondary badge-lg">1 selected</span>
@@ -440,8 +482,8 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Loading */}
-        {loggedIn && stylesLoading && (
+        {/* Loading (only when no cached styles available) */}
+        {loggedIn && stylesLoading && styles.length === 0 && (
           <div className="flex items-center justify-center py-12">
             <span className="loading loading-spinner loading-lg text-primary" />
           </div>
@@ -470,7 +512,7 @@ export default function HomePage() {
         )}
 
         {/* Grid — single-select */}
-        {loggedIn && !stylesLoading && styles.length > 0 && (
+        {loggedIn && styles.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {styles.map((pack) => (
               <StylePackCard

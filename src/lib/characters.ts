@@ -19,6 +19,7 @@ import {
   getRaindrops,
   type RaindropItem,
 } from "./raindrop";
+import { STORAGE_KEYS } from "./auth";
 
 export interface Character {
   id: number;
@@ -26,6 +27,34 @@ export interface Character {
   prompt: string;
   patterns: string[];
   imageUrl: string;
+}
+
+// ---------------------------------------------------------------------------
+// LocalStorage Cache Helpers
+// ---------------------------------------------------------------------------
+
+export function getCachedCharacters(): Character[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.CHARACTERS_CACHE);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedCharacters(characters: Character[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.CHARACTERS_CACHE, JSON.stringify(characters));
+  } catch (e) {
+    console.error("Failed to save characters cache to localStorage", e);
+  }
+}
+
+export function clearCachedCharacters(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(STORAGE_KEYS.CHARACTERS_CACHE);
 }
 
 /**

@@ -7,6 +7,8 @@ export const STORAGE_KEYS = {
   ACCESS_TOKEN: "raindrop_access_token",
   REFRESH_TOKEN: "raindrop_refresh_token",
   EXPIRES_AT: "raindrop_expires_at", // Unix timestamp (ms) when access_token expires
+  CHARACTERS_CACHE: "canvas_characters_cache",
+  STYLES_CACHE: "canvas_styles_cache",
 } as const;
 
 export interface TokenData {
@@ -54,11 +56,18 @@ export function storeTokens(data: TokenData): void {
   localStorage.setItem(STORAGE_KEYS.EXPIRES_AT, String(expiresAt));
 }
 
+export function clearCache(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(STORAGE_KEYS.CHARACTERS_CACHE);
+  localStorage.removeItem(STORAGE_KEYS.STYLES_CACHE);
+}
+
 export function clearTokens(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
   localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
   localStorage.removeItem(STORAGE_KEYS.EXPIRES_AT);
+  clearCache();
 }
 
 // ---------------------------------------------------------------------------
