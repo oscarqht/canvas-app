@@ -423,320 +423,303 @@ export default function HomePage() {
         </div>
       </nav>
 
-      <div className="max-w-5xl mx-auto w-full px-6">
-        <hr className="border-base-300/40" />
-      </div>
-
-      {/* Characters Section */}
-      <section id="characters" className="py-6 px-6 max-w-5xl mx-auto w-full">
-        <div className="mb-6 flex items-end justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
-              Raindrop · Canvas
-            </p>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-              Characters
-              {loggedIn && charsLoading && characters.length > 0 && (
-                <span
-                  className="loading loading-spinner loading-xs text-primary"
-                  title="Refreshing characters..."
-                />
-              )}
+      {!loggedIn ? (
+        <div className="flex-1 flex items-center justify-center w-full min-h-[50vh]">
+          <div className="w-[70%] text-center">
+            <h1
+              className="text-[clamp(4rem,10vw,12rem)] leading-none text-base-content/10 select-none"
+              style={{ fontFamily: "'Brush Script MT', cursive" }}
+            >
+              Canvas
             </h1>
           </div>
-          {selectedCharacterIds.size > 0 && (
-            <span className="badge badge-primary badge-lg gap-1.5">
-              {selectedCharacterIds.size} selected
-            </span>
-          )}
         </div>
-
-        {/* Not logged in */}
-        {!loggedIn && (
-          <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
-            <RaindropIcon className="size-10 text-base-content/20" />
-            <p className="text-base-content/50">
-              Connect your Raindrop account to browse characters.
-            </p>
-            <button
-              onClick={login}
-              className="btn btn-primary btn-sm rounded-full gap-2"
-            >
-              <RaindropIcon className="size-4" />
-              Connect Raindrop
-            </button>
-          </div>
-        )}
-
-        {/* Loading (only when no cached characters available) */}
-        {loggedIn && charsLoading && characters.length === 0 && (
-          <div className="flex items-center justify-center py-12">
-            <span className="loading loading-spinner loading-lg text-primary" />
-          </div>
-        )}
-
-        {/* Error */}
-        {loggedIn && charsError && (
-          <div role="alert" className="alert alert-error">
-            <svg className="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span>{charsError}</span>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {loggedIn && !charsLoading && !charsError && characters.length === 0 && (
-          <div className="text-center py-12 text-base-content/40">
-            <p className="text-lg">No characters found.</p>
-            <p className="text-sm mt-1">
-              Make sure your Raindrop account has a root collection named &ldquo;Canvas&rdquo; with a child collection named &ldquo;Characters&rdquo; containing image items.
-            </p>
-          </div>
-        )}
-
-        {/* Chips */}
-        {loggedIn && characters.length > 0 && chips.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            {chips.map((chip) => {
-              const active = isChipActive(chip);
-              return (
-                <button
-                  key={chip}
-                  onClick={() => toggleChip(chip)}
-                  className={`btn btn-sm rounded-full ${
-                    active ? "btn-primary" : "btn-outline"
-                  }`}
-                >
-                  {chip}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Grid — multi-select */}
-        {loggedIn && characters.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {characters.map((char) => (
-              <CharacterCard
-                key={char.id}
-                character={char}
-                selected={selectedCharacterIds.has(char.id)}
-                onToggle={() => toggleCharacter(char.id)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <div className="max-w-5xl mx-auto w-full px-6">
-        <hr className="border-base-300/40" />
-      </div>
-
-      {/* Styles Section */}
-      <section id="styles" className="py-6 px-6 max-w-5xl mx-auto w-full">
-        <div className="mb-6 flex items-end justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
-              Raindrop · Canvas
-            </p>
-            <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-              Styles
-              {loggedIn && stylesLoading && styles.length > 0 && (
-                <span
-                  className="loading loading-spinner loading-xs text-secondary"
-                  title="Refreshing styles..."
-                />
-              )}
-            </h2>
-          </div>
-          {selectedStyleId !== null && (
-            <span className="badge badge-secondary badge-lg">1 selected</span>
-          )}
-        </div>
-
-        {/* Not logged in */}
-        {!loggedIn && (
-          <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
-            <RaindropIcon className="size-10 text-base-content/20" />
-            <p className="text-base-content/50">
-              Connect your Raindrop account to browse styles.
-            </p>
-          </div>
-        )}
-
-        {/* Loading (only when no cached styles available) */}
-        {loggedIn && stylesLoading && styles.length === 0 && (
-          <div className="flex items-center justify-center py-12">
-            <span className="loading loading-spinner loading-lg text-primary" />
-          </div>
-        )}
-
-        {/* Error */}
-        {loggedIn && stylesError && (
-          <div role="alert" className="alert alert-error">
-            <svg className="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span>{stylesError}</span>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {loggedIn && !stylesLoading && !stylesError && styles.length === 0 && (
-          <div className="text-center py-12 text-base-content/40">
-            <p className="text-lg">No style packs found.</p>
-            <p className="text-sm mt-1">
-              Make sure your Raindrop account has a root collection named &ldquo;Canvas&rdquo; with a child collection named &ldquo;Styles&rdquo; containing style pack sub-collections.
-            </p>
-          </div>
-        )}
-
-        {/* Grid — single-select */}
-        {loggedIn && styles.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {styles.map((pack) => (
-              <StylePackCard
-                key={pack.id}
-                pack={pack}
-                selected={selectedStyleId === pack.id}
-                onToggle={() => toggleStyle(pack.id)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <div className="max-w-5xl mx-auto w-full px-6">
-        <hr className="border-base-300/40" />
-      </div>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* Prompt Controls Section                                             */}
-      {/* ------------------------------------------------------------------ */}
-      <section
-        id="prompt-controls"
-        className="py-6 px-6 max-w-5xl mx-auto w-full"
-      >
-        <div className="flex flex-col gap-6">
-          {/* Instruction textarea */}
-          <div className="form-control gap-2">
-            <label htmlFor="instruction" className="label pb-0">
-              <span className="label-text font-medium">Instruction</span>
-            </label>
-            <textarea
-              id="instruction"
-              className="textarea textarea-bordered w-full min-h-36 resize-y text-sm leading-relaxed focus:textarea-primary transition-colors"
-              placeholder="Describe what you want to generate…"
-              value={instruction}
-              onChange={(e) => setInstruction(e.target.value)}
-            />
-            {instruction.length > 0 && (
-              <span className="text-xs text-base-content/40 text-right">
-                {instruction.length} chars
-              </span>
-            )}
+      ) : (
+        <>
+          <div className="max-w-5xl mx-auto w-full px-6">
+            <hr className="border-base-300/40" />
           </div>
 
-          {/* Ratio select */}
-          <div className="form-control">
-            <select
-              id="ratio"
-              className="select select-bordered w-full max-w-xs focus:select-primary transition-colors"
-              value={ratio}
-              onChange={(e) => setRatio(e.target.value)}
-            >
-              {RATIO_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Generate PDF button */}
-          <div className="flex items-center gap-4 pt-2">
-            <button
-              id="btn-generate-image"
-              onClick={handleGenerateImage}
-              disabled={imageGenerating || !loggedIn}
-              className="btn btn-secondary gap-2 rounded-full px-6 shadow-md hover:shadow-lg transition-shadow"
-            >
-              {imageGenerating ? (
-                <>
-                  <span className="loading loading-spinner loading-sm" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="size-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+          {/* Characters Section */}
+          <section id="characters" className="py-6 px-6 max-w-5xl mx-auto w-full">
+            <div className="mb-6 flex items-end justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
+                  Raindrop · Canvas
+                </p>
+                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+                  Characters
+                  {charsLoading && characters.length > 0 && (
+                    <span
+                      className="loading loading-spinner loading-xs text-primary"
+                      title="Refreshing characters..."
                     />
-                  </svg>
-                  Generate Image
-                </>
+                  )}
+                </h1>
+              </div>
+              {selectedCharacterIds.size > 0 && (
+                <span className="badge badge-primary badge-lg gap-1.5">
+                  {selectedCharacterIds.size} selected
+                </span>
               )}
-            </button>
+            </div>
 
-            <button
-              id="btn-generate-pdf"
-              onClick={() => handleGenerateDocument('pdf')}
-              disabled={pdfGenerating || !loggedIn}
-              className="btn btn-primary gap-2 rounded-full px-6 shadow-md hover:shadow-lg transition-shadow"
-            >
-              {pdfGenerating ? (
-                <>
-                  <span className="loading loading-spinner loading-sm" />
-                  Building PDF…
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="size-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="12" y1="18" x2="12" y2="12" />
-                    <line x1="9" y1="15" x2="15" y2="15" />
-                  </svg>
-                  Generate PDF
-                </>
-              )}
-            </button>
-            {!loggedIn && (
-              <span className="text-sm text-base-content/40">
-                Connect Raindrop first
-              </span>
+            {/* Loading (only when no cached characters available) */}
+            {charsLoading && characters.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <span className="loading loading-spinner loading-lg text-primary" />
+              </div>
             )}
-            {loggedIn && selectedCharacterIds.size === 0 && selectedStyleId === null && (
-              <span className="text-sm text-base-content/40">
-                Select characters and/or a style to include them
-              </span>
+
+            {/* Error */}
+            {charsError && (
+              <div role="alert" className="alert alert-error">
+                <svg className="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{charsError}</span>
+              </div>
             )}
+
+            {/* Empty state */}
+            {!charsLoading && !charsError && characters.length === 0 && (
+              <div className="text-center py-12 text-base-content/40">
+                <p className="text-lg">No characters found.</p>
+                <p className="text-sm mt-1">
+                  Make sure your Raindrop account has a root collection named &ldquo;Canvas&rdquo; with a child collection named &ldquo;Characters&rdquo; containing image items.
+                </p>
+              </div>
+            )}
+
+            {/* Chips */}
+            {characters.length > 0 && chips.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {chips.map((chip) => {
+                  const active = isChipActive(chip);
+                  return (
+                    <button
+                      key={chip}
+                      onClick={() => toggleChip(chip)}
+                      className={`btn btn-sm rounded-full ${
+                        active ? "btn-primary" : "btn-outline"
+                      }`}
+                    >
+                      {chip}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Grid — multi-select */}
+            {characters.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {characters.map((char) => (
+                  <CharacterCard
+                    key={char.id}
+                    character={char}
+                    selected={selectedCharacterIds.has(char.id)}
+                    onToggle={() => toggleCharacter(char.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <div className="max-w-5xl mx-auto w-full px-6">
+            <hr className="border-base-300/40" />
           </div>
-        </div>
-      </section>
+
+          {/* Styles Section */}
+          <section id="styles" className="py-6 px-6 max-w-5xl mx-auto w-full">
+            <div className="mb-6 flex items-end justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-base-content/40 mb-2">
+                  Raindrop · Canvas
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+                  Styles
+                  {stylesLoading && styles.length > 0 && (
+                    <span
+                      className="loading loading-spinner loading-xs text-secondary"
+                      title="Refreshing styles..."
+                    />
+                  )}
+                </h2>
+              </div>
+              {selectedStyleId !== null && (
+                <span className="badge badge-secondary badge-lg">1 selected</span>
+              )}
+            </div>
+
+            {/* Loading (only when no cached styles available) */}
+            {stylesLoading && styles.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <span className="loading loading-spinner loading-lg text-primary" />
+              </div>
+            )}
+
+            {/* Error */}
+            {stylesError && (
+              <div role="alert" className="alert alert-error">
+                <svg className="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{stylesError}</span>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!stylesLoading && !stylesError && styles.length === 0 && (
+              <div className="text-center py-12 text-base-content/40">
+                <p className="text-lg">No style packs found.</p>
+                <p className="text-sm mt-1">
+                  Make sure your Raindrop account has a root collection named &ldquo;Canvas&rdquo; with a child collection named &ldquo;Styles&rdquo; containing style pack sub-collections.
+                </p>
+              </div>
+            )}
+
+            {/* Grid — single-select */}
+            {styles.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {styles.map((pack) => (
+                  <StylePackCard
+                    key={pack.id}
+                    pack={pack}
+                    selected={selectedStyleId === pack.id}
+                    onToggle={() => toggleStyle(pack.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <div className="max-w-5xl mx-auto w-full px-6">
+            <hr className="border-base-300/40" />
+          </div>
+
+          {/* ------------------------------------------------------------------ */}
+          {/* Prompt Controls Section                                             */}
+          {/* ------------------------------------------------------------------ */}
+          <section
+            id="prompt-controls"
+            className="py-6 px-6 max-w-5xl mx-auto w-full"
+          >
+            <div className="flex flex-col gap-6">
+              {/* Instruction textarea */}
+              <div className="form-control gap-2">
+                <label htmlFor="instruction" className="label pb-0">
+                  <span className="label-text font-medium">Instruction</span>
+                </label>
+                <textarea
+                  id="instruction"
+                  className="textarea textarea-bordered w-full min-h-36 resize-y text-sm leading-relaxed focus:textarea-primary transition-colors"
+                  placeholder="Describe what you want to generate…"
+                  value={instruction}
+                  onChange={(e) => setInstruction(e.target.value)}
+                />
+                {instruction.length > 0 && (
+                  <span className="text-xs text-base-content/40 text-right">
+                    {instruction.length} chars
+                  </span>
+                )}
+              </div>
+
+              {/* Ratio select */}
+              <div className="form-control">
+                <select
+                  id="ratio"
+                  className="select select-bordered w-full max-w-xs focus:select-primary transition-colors"
+                  value={ratio}
+                  onChange={(e) => setRatio(e.target.value)}
+                >
+                  {RATIO_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Generate PDF button */}
+              <div className="flex items-center gap-4 pt-2">
+                <button
+                  id="btn-generate-image"
+                  onClick={handleGenerateImage}
+                  disabled={imageGenerating}
+                  className="btn btn-secondary gap-2 rounded-full px-6 shadow-md hover:shadow-lg transition-shadow"
+                >
+                  {imageGenerating ? (
+                    <>
+                      <span className="loading loading-spinner loading-sm" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="size-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                      Generate Image
+                    </>
+                  )}
+                </button>
+
+                <button
+                  id="btn-generate-pdf"
+                  onClick={() => handleGenerateDocument('pdf')}
+                  disabled={pdfGenerating}
+                  className="btn btn-primary gap-2 rounded-full px-6 shadow-md hover:shadow-lg transition-shadow"
+                >
+                  {pdfGenerating ? (
+                    <>
+                      <span className="loading loading-spinner loading-sm" />
+                      Building PDF…
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="size-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="12" y1="18" x2="12" y2="12" />
+                        <line x1="9" y1="15" x2="15" y2="15" />
+                      </svg>
+                      Generate PDF
+                    </>
+                  )}
+                </button>
+                {selectedCharacterIds.size === 0 && selectedStyleId === null && (
+                  <span className="text-sm text-base-content/40">
+                    Select characters and/or a style to include them
+                  </span>
+                )}
+              </div>
+            </div>
+          </section>
+        </>
+      )}
 
       {toast && (
         <div className="toast toast-end z-50">
