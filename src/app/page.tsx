@@ -710,11 +710,6 @@ export default function HomePage() {
                     </>
                   )}
                 </button>
-                {selectedCharacterIds.size === 0 && selectedStyleId === null && (
-                  <span className="text-sm text-base-content/40">
-                    Select characters and/or a style to include them
-                  </span>
-                )}
               </div>
             </div>
           </section>
