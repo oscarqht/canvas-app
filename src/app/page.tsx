@@ -281,7 +281,7 @@ export default function HomePage() {
       if (instruction) url.searchParams.set("instruction", instruction);
       if (characterNames) url.searchParams.set("characters", characterNames);
       if (styleName) url.searchParams.set("style", styleName);
-      if (ratio && ratio !== "auto") url.searchParams.set("aspectRatio", ratio);
+      if (ratio && ratio !== "auto") url.searchParams.set("ratio", ratio);
 
       if (newTab) {
         newTab.location.href = url.toString();
