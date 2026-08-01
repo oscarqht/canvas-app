@@ -139,3 +139,88 @@ export async function getAuthenticatedUser(): Promise<RaindropUser | null> {
 export function gravatarUrl(email_MD5: string, size = 32): string {
   return `https://www.gravatar.com/avatar/${email_MD5}?s=${size}&d=mp`;
 }
+
+/**
+ * Upload a file as a new raindrop item.
+ */
+export async function uploadRaindropFile(collectionId: number, file: Blob, filename: string): Promise<RaindropItem | null> {
+  const token = await getValidAccessToken();
+  const formData = new FormData();
+  formData.append("collectionId", String(collectionId));
+  formData.append("file", file, filename);
+
+  const res = await fetch(`${RAINDROP_API}/raindrop/file`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.result ? data.item : null;
+}
+
+/**
+ * Delete a raindrop item.
+ */
+export async function deleteRaindrop(id: number): Promise<boolean> {
+  const token = await getValidAccessToken();
+  const res = await fetch(`${RAINDROP_API}/raindrop/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.ok;
+}
+
+/**
+ * Update a raindrop item.
+ */
+export async function updateRaindrop(id: number, updates: any): Promise<RaindropItem | null> {
+  const token = await getValidAccessToken();
+  const res = await fetch(`${RAINDROP_API}/raindrop/${id}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(updates),
+  });
+
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.result ? data.item : null;
+}
+
+/**
+ * Get a single raindrop item.
+ */
+export async function getRaindrop(id: number): Promise<RaindropItem | null> {
+  const token = await getValidAccessToken();
+  const res = await fetch(`${RAINDROP_API}/raindrop/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.result ? data.item : null;
+}
+
+/**
+ * Create a new raindrop item.
+ */
+export async function createRaindrop(data: any): Promise<RaindropItem | null> {
+  const token = await getValidAccessToken();
+  const res = await fetch(`${RAINDROP_API}/raindrop`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.result ? json.item : null;
+}

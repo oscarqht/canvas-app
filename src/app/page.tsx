@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   isLoggedIn,
   clearTokens,
@@ -26,6 +26,7 @@ import {
   type StylePack,
 } from "@/lib/styles";
 import { generatePromptDocument } from "@/lib/pdf";
+import { fetchHistory, saveHistory, type HistoryEntry } from "@/lib/history";
 
 // ---------------------------------------------------------------------------
 // Auth + user hook
@@ -168,12 +169,44 @@ const RATIO_OPTIONS = [
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
-import { useRef } from "react";
+
+
+// ---------------------------------------------------------------------------
+// History hook
+// ---------------------------------------------------------------------------
+function useHistory(loggedIn: boolean) {
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const loadHistory = useCallback(async () => {
+    if (!loggedIn) {
+      setHistory([]);
+      return;
+    }
+    setLoadingHistory(true);
+    try {
+      const fetched = await fetchHistory();
+      setHistory(fetched);
+    } catch (error) {
+      console.error("Failed to load history", error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [loggedIn]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  return { history, setHistory, loadingHistory };
+}
 
 export default function HomePage() {
   const { loggedIn, user, loadingUser, login, logout } = useRaindropAuth();
   const { characters, loading: charsLoading, error: charsError } = useCharacters(loggedIn);
   const { styles, loading: stylesLoading, error: stylesError } = useStyles(loggedIn);
+  const { history, setHistory, loadingHistory } = useHistory(loggedIn);
+  const [selectedHistoryEntryId, setSelectedHistoryEntryId] = useState<string>("");
 
   // Selection state
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<number>>(new Set());
@@ -214,6 +247,18 @@ export default function HomePage() {
     });
   };
 
+  const applyHistoryEntry = (historyEntryId: string) => {
+    setSelectedHistoryEntryId(historyEntryId);
+    if (!historyEntryId) return;
+    const historyEntry = history.find(p => p.id === historyEntryId);
+    if (historyEntry) {
+      setSelectedCharacterIds(new Set(historyEntry.selectedCharacterIds));
+      setSelectedStyleId(historyEntry.selectedStyleId);
+      setInstruction(historyEntry.instruction);
+      setRatio(historyEntry.aspectRatio);
+    }
+  };
+
   const toggleStyle = (id: number) => {
     setSelectedStyleId((prev) => (prev === id ? null : id));
   };
@@ -243,6 +288,34 @@ export default function HomePage() {
 
 
 
+
+
+  const saveCurrentAsHistoryEntry = async () => {
+    const newHistoryEntry: HistoryEntry = {
+      id: Date.now().toString(),
+      name: `History ${new Date().toLocaleString()}`,
+      selectedCharacterIds: Array.from(selectedCharacterIds),
+      selectedStyleId: selectedStyleId,
+      instruction: instruction,
+      aspectRatio: ratio,
+    };
+
+    const newHistory = [newHistoryEntry, ...history.filter(p =>
+      // Basic check if exactly same historyEntry, we just overwrite by keeping it at top,
+      // actually we just keep the newest one and remove older ones if we wanted to avoid duplicates,
+      // but let's just prepend and slice to 20 inside saveHistory.
+      true
+    )].slice(0, 20);
+
+    setHistory(newHistory);
+    setSelectedHistoryEntryId(newHistoryEntry.id);
+
+    try {
+      await saveHistory(newHistory);
+    } catch (e) {
+      console.error("Failed to save history:", e);
+    }
+  };
 
   const handleGenerateImage = async () => {
     if (imageGenerating) return;
@@ -301,6 +374,7 @@ export default function HomePage() {
       toastTimeoutRef.current = setTimeout(() => setToast(null), 3000);
     } finally {
       setImageGenerating(false);
+    void saveCurrentAsHistoryEntry();
     }
   };
 
@@ -329,6 +403,7 @@ export default function HomePage() {
       setToast({ message: e instanceof Error ? e.message : `Failed to generate ${format.toUpperCase()}`, type: "error" });
     } finally {
       setPdfGenerating(false);
+      void saveCurrentAsHistoryEntry();
       toastTimeoutRef.current = setTimeout(() => setToast(null), 3000);
     }
   };
@@ -442,6 +517,52 @@ export default function HomePage() {
           <div className="max-w-5xl mx-auto w-full px-6">
             <hr className="border-base-300/40" />
           </div>
+
+
+          {/* History Section */}
+          <section id="history" className="py-6 px-6 max-w-5xl mx-auto w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                History
+              </h2>
+            </div>
+            {loadingHistory ? (
+              <div className="animate-pulse flex gap-3 overflow-hidden py-2">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="h-10 w-48 bg-zinc-200 dark:bg-zinc-700 rounded-lg shrink-0"></div>
+                ))}
+              </div>
+            ) : history.length > 0 ? (
+              <select
+                className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-zinc-900 dark:text-zinc-100"
+                value={selectedHistoryEntryId}
+                onChange={(e) => applyHistoryEntry(e.target.value)}
+              >
+                <option value="">Select from history...</option>
+                {history.map((p) => {
+                  const inst = p.instruction || "-";
+                  const charNames = characters
+                    .filter((c) => p.selectedCharacterIds.includes(c.id))
+                    .map((c) => c.name)
+                    .join(", ");
+                  const chars = charNames || "-";
+                  const style = styles.find((s) => s.id === p.selectedStyleId)?.name || "-";
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {inst} / {chars} / {style}
+                    </option>
+                  );
+                })}
+              </select>
+            ) : (
+              <div className="text-zinc-500 dark:text-zinc-400 text-sm">
+                No history saved yet. Generate an image or document to save one.
+              </div>
+            )}
+          </section>
 
           {/* Characters Section */}
           <section id="characters" className="py-6 px-6 max-w-5xl mx-auto w-full">
