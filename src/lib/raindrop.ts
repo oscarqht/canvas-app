@@ -146,8 +146,8 @@ export function gravatarUrl(email_MD5: string, size = 32): string {
 export async function uploadRaindropFile(collectionId: number, file: Blob, filename: string): Promise<RaindropItem | null> {
   const token = await getValidAccessToken();
   const formData = new FormData();
-  formData.append("file", file, filename);
   formData.append("collectionId", String(collectionId));
+  formData.append("file", file, filename);
 
   const res = await fetch(`${RAINDROP_API}/raindrop/file`, {
     method: "PUT",

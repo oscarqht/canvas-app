@@ -517,7 +517,7 @@ export default function HomePage() {
 
 
           {/* History Section */}
-          <section className="bg-white dark:bg-zinc-800/50 p-6 rounded-xl border border-zinc-200 dark:border-zinc-700/50 shadow-sm">
+          <section id="history" className="py-6 px-6 max-w-5xl mx-auto w-full">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                 <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -539,11 +539,20 @@ export default function HomePage() {
                 onChange={(e) => applyHistoryEntry(e.target.value)}
               >
                 <option value="">Select from history...</option>
-                {history.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
+                {history.map((p) => {
+                  const inst = p.instruction || "-";
+                  const charNames = characters
+                    .filter((c) => p.selectedCharacterIds.includes(c.id))
+                    .map((c) => c.name)
+                    .join(", ");
+                  const chars = charNames || "-";
+                  const style = styles.find((s) => s.id === p.selectedStyleId)?.name || "-";
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {inst} / {chars} / {style}
+                    </option>
+                  );
+                })}
               </select>
             ) : (
               <div className="text-zinc-500 dark:text-zinc-400 text-sm">
