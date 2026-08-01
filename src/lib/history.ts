@@ -22,10 +22,8 @@ export async function fetchHistory(): Promise<HistoryEntry[]> {
     if (!presetItem) return [];
 
     const fileUrl = presetItem.link;
-    const token = await getValidAccessToken();
-    const res = await fetch(fileUrl, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    // Raindrop file links are typically signed URLs (e.g. S3), adding Authorization header causes AWS to return 400.
+    const res = await fetch(fileUrl);
 
     if (!res.ok) return [];
 
