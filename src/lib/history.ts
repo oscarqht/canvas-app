@@ -23,7 +23,8 @@ export async function fetchHistory(): Promise<HistoryEntry[]> {
 
     const fileUrl = presetItem.link;
     // Raindrop file links are typically signed URLs (e.g. S3), adding Authorization header causes AWS to return 400.
-    const res = await fetch(fileUrl);
+    // Since directly fetching S3 might trigger CORS errors on the frontend, we use our own proxy route.
+    const res = await fetch(`/api/proxy-file?url=${encodeURIComponent(fileUrl)}`);
 
     if (!res.ok) return [];
 
