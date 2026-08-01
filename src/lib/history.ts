@@ -1,4 +1,4 @@
-import { getRootCollections, getRaindrops, uploadRaindropFile, updateRaindrop, deleteRaindrop, RaindropItem } from "./raindrop";
+import { getRootCollections, getRaindrops, updateRaindrop, deleteRaindrop, createRaindrop } from "./raindrop";
 import { getValidAccessToken } from "./auth";
 
 export interface HistoryEntry {
@@ -21,15 +21,9 @@ export async function fetchHistory(): Promise<HistoryEntry[]> {
 
     if (!presetItem) return [];
 
-    const fileUrl = presetItem.link;
-    // Raindrop file links are typically signed URLs (e.g. S3), adding Authorization header causes AWS to return 400.
-    // Since directly fetching S3 might trigger CORS errors on the frontend, we use our own proxy route.
-    const res = await fetch(`/api/proxy-file?url=${encodeURIComponent(fileUrl)}`);
+    if (!presetItem.excerpt) return [];
 
-    if (!res.ok) return [];
-
-    const text = await res.text();
-    const data = JSON.parse(text);
+    const data = JSON.parse(presetItem.excerpt);
     return data.history || [];
   } catch (error) {
     console.error("Failed to fetch history:", error);
@@ -48,17 +42,23 @@ export async function saveHistory(history: HistoryEntry[]): Promise<void> {
   // Only keep 20 most recent history
   const historyToSave = history.slice(0, 20);
 
-  const jsonStr = JSON.stringify({ history: historyToSave }, null, 2);
-  const blob = new Blob([jsonStr], { type: "text/plain" });
+  const jsonStr = JSON.stringify({ history: historyToSave });
 
-  const uploadedItem = await uploadRaindropFile(canvas._id, blob, "data.txt");
-  if (!uploadedItem) {
-    throw new Error("Failed to upload history file.");
-  }
+  if (oldHistoryEntryItems.length > 0) {
+    // Update the first existing item and delete duplicates
+    const itemToUpdate = oldHistoryEntryItems[0];
+    await updateRaindrop(itemToUpdate._id, { excerpt: jsonStr });
 
-  await updateRaindrop(uploadedItem._id, { title: "data.txt" });
-
-  for (const item of oldHistoryEntryItems) {
-    await deleteRaindrop(item._id);
+    for (let i = 1; i < oldHistoryEntryItems.length; i++) {
+      await deleteRaindrop(oldHistoryEntryItems[i]._id);
+    }
+  } else {
+    // Create a new item
+    await createRaindrop({
+      title: "data.txt",
+      link: "https://example.com/data.txt", // Raindrop requires a link for non-file items
+      excerpt: jsonStr,
+      collection: { $id: canvas._id },
+    });
   }
 }
