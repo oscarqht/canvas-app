@@ -1,4 +1,11 @@
-import { getRootCollections, getRaindrops, updateRaindrop, deleteRaindrop, createRaindrop } from "./raindrop";
+import {
+  createRaindrop,
+  deleteRaindrop,
+  getCanvasBootstrap,
+  getRaindrops,
+  getRootCollections,
+  updateRaindrop,
+} from "./raindrop";
 
 export interface HistoryEntry {
   id: string;
@@ -16,11 +23,12 @@ export interface AppData {
 
 export async function fetchAppData(): Promise<AppData> {
   try {
-    const roots = await getRootCollections();
-    const canvas = roots.find((c) => c.title.trim().toLowerCase() === "canvas");
-    if (!canvas) return { history: [], presets: [] };
+    const bootstrap = await getCanvasBootstrap();
+    if (!bootstrap) return { history: [], presets: [] };
 
-    const items = await getRaindrops(canvas._id);
+    const items = bootstrap.items.filter(
+      (item) => item.collection?.$id === bootstrap.canvas._id
+    );
     const presetItem = items.find((i) => i.title === "data.txt");
 
     if (!presetItem || !presetItem.excerpt) return { history: [], presets: [] };

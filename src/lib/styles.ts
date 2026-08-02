@@ -10,9 +10,7 @@
  */
 
 import {
-  getRootCollections,
-  getChildCollections,
-  getRaindrops,
+  getCanvasBootstrap,
   type RaindropItem,
 } from "./raindrop";
 import { STORAGE_KEYS } from "./auth";
@@ -107,42 +105,31 @@ function toStylePack(
 }
 
 /**
- * Fetches all style packs from Raindrop:
- *   1. Get all root collections, find one titled "Canvas"
- *   2. Get all child collections, find one titled "Styles" whose parent is "Canvas"
- *   3. Get all child collections whose parent is "Styles" — each is a style pack
- *   4. For each style pack, fetch its raindrops and extract preview + references
+ * Fetches all style packs from the shared Canvas bootstrap response.
  *
  * Returns an empty array if the expected structure is not found.
  */
 export async function fetchStylePacks(): Promise<StylePack[]> {
-  // 1. Locate the "Canvas" root collection
-  const roots = await getRootCollections();
-  const canvasCollection = roots.find(
-    (c) => c.title.trim().toLowerCase() === "canvas"
-  );
-  if (!canvasCollection) return [];
+  const bootstrap = await getCanvasBootstrap();
+  if (!bootstrap) return [];
 
-  // 2. Locate the "Styles" child collection under "Canvas"
-  const allChildren = await getChildCollections();
-  const stylesCollection = allChildren.find(
+  const stylesCollection = bootstrap.children.find(
     (c) =>
       c.title.trim().toLowerCase() === "styles" &&
-      c.parent?.$id === canvasCollection._id
+      c.parent?.$id === bootstrap.canvas._id
   );
   if (!stylesCollection) return [];
 
-  // 3. Find all direct children of "Styles" — these are the individual style packs
-  const stylePackCollections = allChildren.filter(
+  const stylePackCollections = bootstrap.children.filter(
     (c) => c.parent?.$id === stylesCollection._id
   );
 
-  // 4. For each style pack, fetch its items and build a StylePack object
-  const packs = await Promise.all(
-    stylePackCollections.map(async (col) => {
-      const items = await getRaindrops(col._id);
-      return toStylePack(col._id, col.title, items);
-    })
+  const packs = stylePackCollections.map((col) =>
+    toStylePack(
+      col._id,
+      col.title,
+      bootstrap.items.filter((item) => item.collection?.$id === col._id)
+    )
   );
 
   // Reverse the order of packs to match reverse Raindrop API response

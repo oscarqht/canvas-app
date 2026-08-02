@@ -55,8 +55,9 @@ function useRaindropAuth() {
   useEffect(() => {
     /* eslint-disable-next-line react-hooks/set-state-in-effect */
     void fetchUser();
-    window.addEventListener("focus", () => void fetchUser());
-    return () => window.removeEventListener("focus", fetchUser);
+    const refreshUser = () => void fetchUser();
+    window.addEventListener("focus", refreshUser);
+    return () => window.removeEventListener("focus", refreshUser);
   }, [fetchUser]);
 
   const login = () => redirectToRaindropAuth();

@@ -28,6 +28,14 @@ export interface RaindropCollection {
   parent?: { $id: number };
 }
 
+export interface CanvasBootstrap {
+  canvas: RaindropCollection;
+  children: RaindropCollection[];
+  items: RaindropItem[];
+}
+
+let canvasBootstrapPromise: Promise<CanvasBootstrap | null> | null = null;
+
 /**
  * Fetch all root-level collections for the authenticated user.
  */
@@ -70,13 +78,17 @@ export interface RaindropItem {
   media: { link: string; type: string }[];
   link: string;
   tags: string[];
+  collection?: { $id: number };
 }
 
 /**
  * Fetch all raindrops from a specific collection.
  * Paginates through all pages (50 per page max).
  */
-export async function getRaindrops(collectionId: number): Promise<RaindropItem[]> {
+export async function getRaindrops(
+  collectionId: number,
+  { nested = false }: { nested?: boolean } = {}
+): Promise<RaindropItem[]> {
   const token = await getValidAccessToken();
   const allItems: RaindropItem[] = [];
   let page = 0;
@@ -85,6 +97,7 @@ export async function getRaindrops(collectionId: number): Promise<RaindropItem[]
     const url = new URL(`${RAINDROP_API}/raindrops/${collectionId}`);
     url.searchParams.set("perpage", "50");
     url.searchParams.set("page", String(page));
+    if (nested) url.searchParams.set("nested", "true");
 
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${token}` },
@@ -103,6 +116,39 @@ export async function getRaindrops(collectionId: number): Promise<RaindropItem[]
   }
 
   return allItems;
+}
+
+/**
+ * Loads the Canvas collection tree and every item beneath it once.
+ * Concurrent callers share this request so the page's independent panels do
+ * not each rediscover the same collection hierarchy.
+ */
+export async function getCanvasBootstrap(): Promise<CanvasBootstrap | null> {
+  if (canvasBootstrapPromise) return canvasBootstrapPromise;
+
+  const load = (async () => {
+    const [roots, children] = await Promise.all([
+      getRootCollections(),
+      getChildCollections(),
+    ]);
+    const canvas = roots.find(
+      (collection) => collection.title.trim().toLowerCase() === "canvas"
+    );
+    if (!canvas) return null;
+
+    return {
+      canvas,
+      children,
+      items: await getRaindrops(canvas._id, { nested: true }),
+    };
+  })();
+
+  canvasBootstrapPromise = load;
+  try {
+    return await load;
+  } finally {
+    if (canvasBootstrapPromise === load) canvasBootstrapPromise = null;
+  }
 }
 
 /**

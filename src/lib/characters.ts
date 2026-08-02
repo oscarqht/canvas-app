@@ -14,9 +14,7 @@
  */
 
 import {
-  getRootCollections,
-  getChildCollections,
-  getRaindrops,
+  getCanvasBootstrap,
   type RaindropItem,
 } from "./raindrop";
 import { STORAGE_KEYS } from "./auth";
@@ -85,36 +83,27 @@ function toCharacter(item: RaindropItem): Character {
 }
 
 /**
- * Fetches all characters from Raindrop:
- *   1. Get all root collections, find one titled "Canvas"
- *   2. Get all child collections, find one titled "Characters" whose parent is "Canvas"
- *   3. Get all image raindrops from that child collection
+ * Fetches all characters from the shared Canvas bootstrap response.
  *
  * Returns an empty array if the expected structure is not found.
  */
 export async function fetchCharacters(): Promise<Character[]> {
-  // 1. Locate the "Canvas" root collection
-  const roots = await getRootCollections();
-  const canvasCollection = roots.find(
-    (c) => c.title.trim().toLowerCase() === "canvas"
-  );
-  if (!canvasCollection) return [];
+  const bootstrap = await getCanvasBootstrap();
+  if (!bootstrap) return [];
 
-  // 2. Locate the "Characters" child collection under "Canvas"
-  const children = await getChildCollections();
-  const charactersCollection = children.find(
+  // Locate the "Characters" child collection under "Canvas".
+  const charactersCollection = bootstrap.children.find(
     (c) =>
       c.title.trim().toLowerCase() === "characters" &&
-      c.parent?.$id === canvasCollection._id
+      c.parent?.$id === bootstrap.canvas._id
   );
   if (!charactersCollection) return [];
 
-  // 3. Fetch all raindrops from the "Characters" collection
-  const items = await getRaindrops(charactersCollection._id);
-
-  // Filter to image-type items only, map to Character shape, and sort alphabetically
-  return items
-    .filter((item) => item.type === "image")
+  return bootstrap.items
+    .filter(
+      (item) =>
+        item.collection?.$id === charactersCollection._id && item.type === "image"
+    )
     .map(toCharacter)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
