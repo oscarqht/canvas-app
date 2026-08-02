@@ -17,6 +17,25 @@ export interface RaindropUser {
 }
 
 // ---------------------------------------------------------------------------
+// In-flight Request Deduplication
+// ---------------------------------------------------------------------------
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const inflightRequests = new Map<string, Promise<any>>();
+
+export function withDedupe<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  if (inflightRequests.has(key)) {
+    return inflightRequests.get(key) as Promise<T>;
+  }
+
+  const promise = fn().finally(() => {
+    inflightRequests.delete(key);
+  });
+
+  inflightRequests.set(key, promise);
+  return promise;
+}
+
+// ---------------------------------------------------------------------------
 // Collections
 // ---------------------------------------------------------------------------
 
@@ -32,28 +51,32 @@ export interface RaindropCollection {
  * Fetch all root-level collections for the authenticated user.
  */
 export async function getRootCollections(): Promise<RaindropCollection[]> {
-  const token = await getValidAccessToken();
-  const res = await fetch(`${RAINDROP_API}/collections`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
+  return withDedupe("getRootCollections", async () => {
+    const token = await getValidAccessToken();
+    const res = await fetch(`${RAINDROP_API}/collections`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.result ? (data.items as RaindropCollection[]) : [];
   });
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.result ? (data.items as RaindropCollection[]) : [];
 }
 
 /**
  * Fetch all child (nested) collections for the authenticated user.
  */
 export async function getChildCollections(): Promise<RaindropCollection[]> {
-  const token = await getValidAccessToken();
-  const res = await fetch(`${RAINDROP_API}/collections/childrens`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
+  return withDedupe("getChildCollections", async () => {
+    const token = await getValidAccessToken();
+    const res = await fetch(`${RAINDROP_API}/collections/childrens`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.result ? (data.items as RaindropCollection[]) : [];
   });
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.result ? (data.items as RaindropCollection[]) : [];
 }
 
 // ---------------------------------------------------------------------------
@@ -70,39 +93,45 @@ export interface RaindropItem {
   media: { link: string; type: string }[];
   link: string;
   tags: string[];
+  collectionId: number;
 }
 
 /**
  * Fetch all raindrops from a specific collection.
  * Paginates through all pages (50 per page max).
  */
-export async function getRaindrops(collectionId: number): Promise<RaindropItem[]> {
-  const token = await getValidAccessToken();
-  const allItems: RaindropItem[] = [];
-  let page = 0;
+export async function getRaindrops(collectionId: number, search?: string): Promise<RaindropItem[]> {
+  return withDedupe(`getRaindrops:${collectionId}:${search || ""}`, async () => {
+    const token = await getValidAccessToken();
+    const allItems: RaindropItem[] = [];
+    let page = 0;
 
-  while (true) {
-    const url = new URL(`${RAINDROP_API}/raindrops/${collectionId}`);
-    url.searchParams.set("perpage", "50");
-    url.searchParams.set("page", String(page));
+    while (true) {
+      const url = new URL(`${RAINDROP_API}/raindrops/${collectionId}`);
+      url.searchParams.set("perpage", "50");
+      url.searchParams.set("page", String(page));
+      if (search) {
+        url.searchParams.set("search", search);
+      }
 
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
+      const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
 
-    if (!res.ok) break;
-    const data = await res.json();
-    if (!data.result || !Array.isArray(data.items) || data.items.length === 0) break;
+      if (!res.ok) break;
+      const data = await res.json();
+      if (!data.result || !Array.isArray(data.items) || data.items.length === 0) break;
 
-    allItems.push(...(data.items as RaindropItem[]));
+      allItems.push(...(data.items as RaindropItem[]));
 
-    // If we received fewer than 50 items, we're on the last page
-    if (data.items.length < 50) break;
-    page++;
-  }
+      // If we received fewer than 50 items, we're on the last page
+      if (data.items.length < 50) break;
+      page++;
+    }
 
-  return allItems;
+    return allItems;
+  });
 }
 
 /**
@@ -110,29 +139,31 @@ export async function getRaindrops(collectionId: number): Promise<RaindropItem[]
  * Returns null if the token is missing / invalid.
  */
 export async function getAuthenticatedUser(): Promise<RaindropUser | null> {
-  let token: string;
-  try {
-    token = await getValidAccessToken();
-  } catch {
-    return null;
-  }
+  return withDedupe("getAuthenticatedUser", async () => {
+    let token: string;
+    try {
+      token = await getValidAccessToken();
+    } catch {
+      return null;
+    }
 
-  const res = await fetch(`${RAINDROP_API}/user`, {
-    headers: { Authorization: `Bearer ${token}` },
-    // Always fresh — user info rarely changes but we don't want stale cache
-    cache: "no-store",
+    const res = await fetch(`${RAINDROP_API}/user`, {
+      headers: { Authorization: `Bearer ${token}` },
+      // Always fresh — user info rarely changes but we don't want stale cache
+      cache: "no-store",
+    });
+
+    if (res.status === 401) {
+      // Token is invalid even after refresh attempt — clear storage
+      clearTokens();
+      return null;
+    }
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    return data.result ? (data.user as RaindropUser) : null;
   });
-
-  if (res.status === 401) {
-    // Token is invalid even after refresh attempt — clear storage
-    clearTokens();
-    return null;
-  }
-
-  if (!res.ok) return null;
-
-  const data = await res.json();
-  return data.result ? (data.user as RaindropUser) : null;
 }
 
 /** Gravatar URL derived from email_MD5 provided by the API */
@@ -175,6 +206,7 @@ export async function deleteRaindrop(id: number): Promise<boolean> {
 /**
  * Update a raindrop item.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function updateRaindrop(id: number, updates: any): Promise<RaindropItem | null> {
   const token = await getValidAccessToken();
   const res = await fetch(`${RAINDROP_API}/raindrop/${id}`, {
@@ -195,20 +227,23 @@ export async function updateRaindrop(id: number, updates: any): Promise<Raindrop
  * Get a single raindrop item.
  */
 export async function getRaindrop(id: number): Promise<RaindropItem | null> {
-  const token = await getValidAccessToken();
-  const res = await fetch(`${RAINDROP_API}/raindrop/${id}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
+  return withDedupe(`getRaindrop:${id}`, async () => {
+    const token = await getValidAccessToken();
+    const res = await fetch(`${RAINDROP_API}/raindrop/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
 
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.result ? data.item : null;
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.result ? data.item : null;
+  });
 }
 
 /**
  * Create a new raindrop item.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function createRaindrop(data: any): Promise<RaindropItem | null> {
   const token = await getValidAccessToken();
   const res = await fetch(`${RAINDROP_API}/raindrop`, {

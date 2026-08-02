@@ -109,8 +109,15 @@ export async function fetchCharacters(): Promise<Character[]> {
   );
   if (!charactersCollection) return [];
 
-  // 3. Fetch all raindrops from the "Characters" collection
-  const items = await getRaindrops(charactersCollection._id);
+  // 3. Find all sub-collections under "Characters"
+  const characterGroups = children.filter(
+    (c) => c.parent?.$id === charactersCollection._id
+  );
+
+  // 4. Batch fetch all items across all sub-collections using a single search query on collection 0
+  const groupIds = characterGroups.map((g) => g._id);
+  const searchFilter = JSON.stringify([{ collection: charactersCollection._id }, ...groupIds.map((id) => ({ collection: id }))]);
+  const items = await getRaindrops(0, searchFilter);
 
   // Filter to image-type items only, map to Character shape, and sort alphabetically
   return items

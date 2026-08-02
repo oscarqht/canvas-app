@@ -137,13 +137,24 @@ export async function fetchStylePacks(): Promise<StylePack[]> {
     (c) => c.parent?.$id === stylesCollection._id
   );
 
-  // 4. For each style pack, fetch its items and build a StylePack object
-  const packs = await Promise.all(
-    stylePackCollections.map(async (col) => {
-      const items = await getRaindrops(col._id);
-      return toStylePack(col._id, col.title, items);
-    })
-  );
+  // 4. Fetch ALL items from the nested collections using cross-collection search
+  // Collection "0" with a search query filtering by the collections allows batched fetch.
+  const searchFilter = JSON.stringify(stylePackCollections.map(c => ({ collection: c._id })));
+  const allNestedItems = await getRaindrops(0, searchFilter);
+
+  // 5. Group items by their collectionId
+  const itemsByCollection = new Map<number, RaindropItem[]>();
+  for (const item of allNestedItems) {
+    const colItems = itemsByCollection.get(item.collectionId) ?? [];
+    colItems.push(item);
+    itemsByCollection.set(item.collectionId, colItems);
+  }
+
+  // 6. Build the StylePack objects
+  const packs = stylePackCollections.map((col) => {
+    const items = itemsByCollection.get(col._id) ?? [];
+    return toStylePack(col._id, col.title, items);
+  });
 
   // Reverse the order of packs to match reverse Raindrop API response
   return packs.reverse();

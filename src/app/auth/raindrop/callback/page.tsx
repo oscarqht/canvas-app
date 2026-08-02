@@ -40,7 +40,7 @@ function CallbackHandler() {
           window.location.href = redirectUrl.toString();
           return;
         }
-      } catch (e) {
+      } catch {
         console.warn("Invalid state URL format:", state);
       }
     }
@@ -77,8 +77,13 @@ function CallbackHandler() {
   }, [searchParams, router]);
 
   useEffect(() => {
-    handleCallback();
-  }, [handleCallback]);
+    // We defer the execution using setTimeout so React doesn't complain about setting state during render/effect cascade
+    const timer = setTimeout(() => {
+      handleCallback();
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="card bg-base-200 border border-base-300/50 shadow-xl w-full max-w-sm">
