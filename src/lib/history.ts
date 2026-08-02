@@ -1,5 +1,4 @@
 import { getRootCollections, getRaindrops, updateRaindrop, deleteRaindrop, createRaindrop } from "./raindrop";
-import { getValidAccessToken } from "./auth";
 
 export interface HistoryEntry {
   id: string;
@@ -10,28 +9,54 @@ export interface HistoryEntry {
   aspectRatio: string;
 }
 
-export async function fetchHistory(): Promise<HistoryEntry[]> {
+export interface AppData {
+  history: HistoryEntry[];
+  presets: HistoryEntry[];
+}
+
+export async function fetchAppData(): Promise<AppData> {
   try {
     const roots = await getRootCollections();
     const canvas = roots.find((c) => c.title.trim().toLowerCase() === "canvas");
-    if (!canvas) return [];
+    if (!canvas) return { history: [], presets: [] };
 
     const items = await getRaindrops(canvas._id);
     const presetItem = items.find((i) => i.title === "data.txt");
 
-    if (!presetItem) return [];
-
-    if (!presetItem.excerpt) return [];
+    if (!presetItem || !presetItem.excerpt) return { history: [], presets: [] };
 
     const data = JSON.parse(presetItem.excerpt);
-    return data.history || [];
+    return {
+      history: data.history || [],
+      presets: data.presets || []
+    };
   } catch (error) {
-    console.error("Failed to fetch history:", error);
-    return [];
+    console.error("Failed to fetch app data:", error);
+    return { history: [], presets: [] };
   }
 }
 
+export async function fetchHistory(): Promise<HistoryEntry[]> {
+  const data = await fetchAppData();
+  return data.history;
+}
+
+export async function fetchPresets(): Promise<HistoryEntry[]> {
+  const data = await fetchAppData();
+  return data.presets;
+}
+
 export async function saveHistory(history: HistoryEntry[]): Promise<void> {
+  const data = await fetchAppData();
+  await saveAppData({ ...data, history: history.slice(0, 20) });
+}
+
+export async function savePresets(presets: HistoryEntry[]): Promise<void> {
+  const data = await fetchAppData();
+  await saveAppData({ ...data, presets });
+}
+
+async function saveAppData(data: AppData): Promise<void> {
   const roots = await getRootCollections();
   const canvas = roots.find((c) => c.title.trim().toLowerCase() === "canvas");
   if (!canvas) throw new Error("Could not find Canvas root collection.");
@@ -39,10 +64,7 @@ export async function saveHistory(history: HistoryEntry[]): Promise<void> {
   const items = await getRaindrops(canvas._id);
   const oldHistoryEntryItems = items.filter((i) => i.title === "data.txt");
 
-  // Only keep 20 most recent history
-  const historyToSave = history.slice(0, 20);
-
-  const jsonStr = JSON.stringify({ history: historyToSave });
+  const jsonStr = JSON.stringify(data);
 
   if (oldHistoryEntryItems.length > 0) {
     // Update the first existing item and delete duplicates
