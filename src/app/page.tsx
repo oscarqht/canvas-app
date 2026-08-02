@@ -191,8 +191,9 @@ function usePresets(loggedIn: boolean) {
     const cached = getCachedPresets();
     if (cached && cached.length > 0) {
       setPresets(cached);
+    } else {
+      setLoadingPresets(true);
     }
-    setLoadingPresets(true);
     try {
       const fetched = await fetchPresets();
       setPresets(fetched);
@@ -228,8 +229,9 @@ function useHistory(loggedIn: boolean) {
     const cached = getCachedHistory();
     if (cached && cached.length > 0) {
       setHistory(cached);
+    } else {
+      setLoadingHistory(true);
     }
-    setLoadingHistory(true);
     try {
       const fetched = await fetchHistory();
       setHistory(fetched);
