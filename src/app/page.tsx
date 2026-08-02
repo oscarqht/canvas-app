@@ -26,7 +26,7 @@ import {
   type StylePack,
 } from "@/lib/styles";
 import { generatePromptDocument } from "@/lib/pdf";
-import { fetchHistory, saveHistory, fetchPresets, savePresets, type HistoryEntry } from "@/lib/history";
+import { fetchHistory, saveHistory, fetchPresets, savePresets, getCachedHistory, getCachedPresets, setCachedHistory, setCachedPresets, type HistoryEntry } from "@/lib/history";
 
 // ---------------------------------------------------------------------------
 // Auth + user hook
@@ -188,10 +188,16 @@ function usePresets(loggedIn: boolean) {
       setPresets([]);
       return;
     }
-    setLoadingPresets(true);
+    const cached = getCachedPresets();
+    if (cached && cached.length > 0) {
+      setPresets(cached);
+    } else {
+      setLoadingPresets(true);
+    }
     try {
       const fetched = await fetchPresets();
       setPresets(fetched);
+      setCachedPresets(fetched);
     } catch (error) {
       console.error("Failed to load presets", error);
     } finally {
@@ -220,10 +226,16 @@ function useHistory(loggedIn: boolean) {
       setHistory([]);
       return;
     }
-    setLoadingHistory(true);
+    const cached = getCachedHistory();
+    if (cached && cached.length > 0) {
+      setHistory(cached);
+    } else {
+      setLoadingHistory(true);
+    }
     try {
       const fetched = await fetchHistory();
       setHistory(fetched);
+      setCachedHistory(fetched);
     } catch (error) {
       console.error("Failed to load history", error);
     } finally {

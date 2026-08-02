@@ -21,6 +21,49 @@ export interface AppData {
   presets: HistoryEntry[];
 }
 
+const STORAGE_KEYS = {
+  HISTORY_CACHE: "draw_context_history_cache",
+  PRESETS_CACHE: "draw_context_presets_cache",
+};
+
+export function getCachedHistory(): HistoryEntry[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.HISTORY_CACHE);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedHistory(history: HistoryEntry[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.HISTORY_CACHE, JSON.stringify(history));
+  } catch (error) {
+    console.error("Failed to cache history:", error);
+  }
+}
+
+export function getCachedPresets(): HistoryEntry[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.PRESETS_CACHE);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedPresets(presets: HistoryEntry[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.PRESETS_CACHE, JSON.stringify(presets));
+  } catch (error) {
+    console.error("Failed to cache presets:", error);
+  }
+}
+
 export async function fetchAppData(): Promise<AppData> {
   try {
     const bootstrap = await getCanvasBootstrap();
@@ -55,11 +98,14 @@ export async function fetchPresets(): Promise<HistoryEntry[]> {
 }
 
 export async function saveHistory(history: HistoryEntry[]): Promise<void> {
+  const newHistory = history.slice(0, 20);
+  setCachedHistory(newHistory);
   const data = await fetchAppData();
-  await saveAppData({ ...data, history: history.slice(0, 20) });
+  await saveAppData({ ...data, history: newHistory });
 }
 
 export async function savePresets(presets: HistoryEntry[]): Promise<void> {
+  setCachedPresets(presets);
   const data = await fetchAppData();
   await saveAppData({ ...data, presets });
 }
