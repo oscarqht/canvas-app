@@ -26,7 +26,7 @@ import {
   type StylePack,
 } from "@/lib/styles";
 import { generatePromptDocument } from "@/lib/pdf";
-import { fetchHistory, saveHistory, type HistoryEntry } from "@/lib/history";
+import { fetchHistory, saveHistory, fetchPresets, savePresets, type HistoryEntry } from "@/lib/history";
 
 // ---------------------------------------------------------------------------
 // Auth + user hook
@@ -53,8 +53,9 @@ function useRaindropAuth() {
   }, []);
 
   useEffect(() => {
-    fetchUser();
-    window.addEventListener("focus", fetchUser);
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    void fetchUser();
+    window.addEventListener("focus", () => void fetchUser());
     return () => window.removeEventListener("focus", fetchUser);
   }, [fetchUser]);
 
@@ -103,7 +104,8 @@ function useCharacters(loggedIn: boolean) {
   }, [loggedIn]);
 
   useEffect(() => {
-    load();
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    void load();
   }, [load]);
 
   return { characters, loading, error, reload: load };
@@ -143,7 +145,8 @@ function useStyles(loggedIn: boolean) {
   }, [loggedIn]);
 
   useEffect(() => {
-    load();
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    void load();
   }, [load]);
 
   return { styles, loading, error, reload: load };
@@ -171,9 +174,42 @@ const RATIO_OPTIONS = [
 // ---------------------------------------------------------------------------
 
 
+
+// ---------------------------------------------------------------------------
+// Presets hook
+// ---------------------------------------------------------------------------
+function usePresets(loggedIn: boolean) {
+  const [presets, setPresets] = useState<HistoryEntry[]>([]);
+  const [loadingPresets, setLoadingPresets] = useState(false);
+
+  const loadPresets = useCallback(async () => {
+    if (!loggedIn) {
+      setPresets([]);
+      return;
+    }
+    setLoadingPresets(true);
+    try {
+      const fetched = await fetchPresets();
+      setPresets(fetched);
+    } catch (error) {
+      console.error("Failed to load presets", error);
+    } finally {
+      setLoadingPresets(false);
+    }
+  }, [loggedIn]);
+
+  useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    void loadPresets();
+  }, [loadPresets]);
+
+  return { presets, setPresets, loadingPresets };
+}
+
 // ---------------------------------------------------------------------------
 // History hook
 // ---------------------------------------------------------------------------
+
 function useHistory(loggedIn: boolean) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -195,7 +231,8 @@ function useHistory(loggedIn: boolean) {
   }, [loggedIn]);
 
   useEffect(() => {
-    loadHistory();
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    void loadHistory();
   }, [loadHistory]);
 
   return { history, setHistory, loadingHistory };
@@ -206,6 +243,8 @@ export default function HomePage() {
   const { characters, loading: charsLoading, error: charsError } = useCharacters(loggedIn);
   const { styles, loading: stylesLoading, error: stylesError } = useStyles(loggedIn);
   const { history, setHistory, loadingHistory } = useHistory(loggedIn);
+  const { presets, setPresets, loadingPresets } = usePresets(loggedIn);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>("");
   const [selectedHistoryEntryId, setSelectedHistoryEntryId] = useState<string>("");
 
   // Selection state
@@ -245,6 +284,59 @@ export default function HomePage() {
       }
       return next;
     });
+  };
+
+
+  const applyPreset = (presetId: string) => {
+    setSelectedPresetId(presetId);
+    if (!presetId) return;
+    const preset = presets.find(p => p.id === presetId);
+    if (preset) {
+      setSelectedCharacterIds(new Set(preset.selectedCharacterIds));
+      setSelectedStyleId(preset.selectedStyleId);
+      setInstruction(preset.instruction);
+      setRatio(preset.aspectRatio);
+    }
+  };
+
+  const deletePreset = async (presetId: string) => {
+    const newPresets = presets.filter(p => p.id !== presetId);
+    setPresets(newPresets);
+    if (selectedPresetId === presetId) {
+      setSelectedPresetId("");
+    }
+    try {
+      await savePresets(newPresets);
+    } catch (e) {
+      console.error("Failed to delete preset:", e);
+    }
+  };
+
+  const handleSavePreset = async () => {
+    const name = prompt("Enter a name for this preset:");
+    if (!name) return;
+
+    const newPreset: HistoryEntry = {
+      id: Date.now().toString(),
+      name,
+      selectedCharacterIds: Array.from(selectedCharacterIds),
+      selectedStyleId: selectedStyleId,
+      instruction: instruction,
+      aspectRatio: ratio,
+    };
+
+    const newPresets = [newPreset, ...presets];
+    setPresets(newPresets);
+    setSelectedPresetId(newPreset.id);
+
+    try {
+      await savePresets(newPresets);
+      setToast({ message: "Preset saved!", type: "success" });
+    } catch (e) {
+      console.error("Failed to save preset:", e);
+      setToast({ message: "Failed to save preset.", type: "error" });
+    }
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 3000);
   };
 
   const applyHistoryEntry = (historyEntryId: string) => {
@@ -300,7 +392,7 @@ export default function HomePage() {
       aspectRatio: ratio,
     };
 
-    const newHistory = [newHistoryEntry, ...history.filter(p =>
+    const newHistory = [newHistoryEntry, ...history.filter(() =>
       // Basic check if exactly same historyEntry, we just overwrite by keeping it at top,
       // actually we just keep the newest one and remove older ones if we wanted to avoid duplicates,
       // but let's just prepend and slice to 20 inside saveHistory.
@@ -518,6 +610,62 @@ export default function HomePage() {
             <hr className="border-base-300/40" />
           </div>
 
+
+
+          {/* Presets Section */}
+          <section id="presets" className="py-6 px-6 max-w-5xl mx-auto w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Presets
+              </h2>
+            </div>
+            {loadingPresets ? (
+              <div className="animate-pulse flex gap-3 overflow-hidden py-2">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="h-10 w-48 bg-zinc-200 dark:bg-zinc-700 rounded-lg shrink-0"></div>
+                ))}
+              </div>
+            ) : presets.length > 0 ? (
+              <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                {presets.map((p) => {
+                  return (
+                    <div
+                      key={p.id}
+                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedPresetId === p.id
+                          ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                          : 'border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 hover:border-indigo-300'
+                      }`}
+                      onClick={() => applyPreset(p.id)}
+                    >
+                      <div className="truncate font-medium text-sm pr-2 text-zinc-800 dark:text-zinc-200">
+                        {p.name}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deletePreset(p.id);
+                        }}
+                        className="btn btn-ghost btn-xs btn-circle text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        title="Delete preset"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-zinc-500 dark:text-zinc-400 text-sm">
+                No presets saved yet.
+              </div>
+            )}
+          </section>
 
           {/* History Section */}
           <section id="history" className="py-6 px-6 max-w-5xl mx-auto w-full">
@@ -769,8 +917,22 @@ export default function HomePage() {
                 </select>
               </div>
 
-              {/* Generate PDF button */}
-              <div className="flex items-center gap-4 pt-2">
+
+              {/* Buttons */}
+              <div className="flex items-center gap-4 pt-2 flex-wrap">
+                <button
+                  id="btn-save-preset"
+                  onClick={handleSavePreset}
+                  className="btn btn-outline gap-2 rounded-full px-6"
+                >
+                  <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                  </svg>
+                  Save Preset
+                </button>
+
                 <button
                   id="btn-generate-image"
                   onClick={handleGenerateImage}
